@@ -39,6 +39,9 @@ C_FILES += xsh_nvram.c
 # Test commands
 C_FILES += xsh_test.c xsh_testsuite.c
 
+# Lab commands
+C_FILES += xsh_printtos.c xsh_printprocstks.c
+
 S_FILES =
 
 # Add the files to the compile source path
