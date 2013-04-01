@@ -27,12 +27,7 @@ devcall ttyRead(device *devptr, void *buf, uint len)
   int ch = 0;
   int count = 0;
 
-  // more edits by justin
-  // current buffer position
-  char *buffer = buf;
-  // end of current text 
-  // count keeps track of the last element
-  // keeps track of the number of left shifts
+ char *buffer = buf;
   int left = 0;
   char escape = 0;
   int i = 0;
@@ -113,28 +108,17 @@ devcall ttyRead(device *devptr, void *buf, uint len)
                 ttyptr->in[ttyptr->istart + ttyptr->icount - i + 1];
             }
 
-//            printf("\n");
-//            for(i = 0; i < ttyptr->icount; i++){
-//                printf("%c", ttyptr->in[ttyptr->istart + i]);
-//            }
-//            printf("\n");
-            printf("\033[s");           // save cursor position
+            printf("\033[s");                            // save cursor position
             printf("\033[%dD", ttyptr->icount - left);   // move the cursor to the end of the line
-            printf("\033[K"); // delete to end of line
-
-            //          for( i = 0; i < ttyptr->icount - 1; i++){
-            //            printf("\b");             // delete what i need to
-            //          }
+            printf("\033[K");                            // delete to end of line
 
             ttyptr->icount--;
             for( i = 0; i < ttyptr->icount; i++){
               printf("%c", ttyptr->in[ttyptr->istart + i]);
-              //ttyEcho(devptr, ttyptr->in[i]);
             }
 
-            printf("\033[u");  // unsave cursor
-            printf("\033[1D");   // move the cursor to the end of the line
-            //printf("\n\nleft: %d, icount: %d\n", left, ttyptr->icount);
+            printf("\033[u");                           // unsave cursor
+            printf("\033[1D");                          // move the cursor to the end of the line
             continue;
         }
 
@@ -152,9 +136,7 @@ devcall ttyRead(device *devptr, void *buf, uint len)
           ch;
         ttyptr->icount++;
         ttyptr->idelim = TRUE;
-        // move right
-        left--;
-        break;
+       break;
         /* Carriage return */
       case '\r':
         /* Ignore carriage return if IGNCR flag is set */
@@ -180,10 +162,10 @@ devcall ttyRead(device *devptr, void *buf, uint len)
         ttyptr->ieof = TRUE;
         ttyptr->idelim = TRUE;
         break;
+
         /* All other characters */
-        /* @added by Justin Vreeland jmv8443@rit.edu 
-         * to handle arrow keys and line clearing
-         */
+
+        /* this handles simple line editing using VT100 escape codes */
       case 27:
         escape = 1;
         ch = (*phw->getc) (phw);
@@ -197,26 +179,21 @@ devcall ttyRead(device *devptr, void *buf, uint len)
               //down isn't implemented
               break;
             case 'C': // right arrow
-              // I really don't think printf was the best choice
-              if( left == 0 ){
-                continue;
+              if( left > 0 ){
+                left--;
+                printf("\033[1C");
               }
-
-              left--;
-              printf("\033[1C");
               break;
             case 'D': // left arrow
-              if(left == ttyptr->icount){
-                continue;
+              if( !((left == ttyptr->icount) || (ttyptr->icount == 0)) ){
+                left++;
+                printf("\033[1D");
               }
-
-              left++;
-              printf("\033[1D");
               break;
           }// switch
-        }
-
+        } // if
         break;
+
       default:
         /* Ignore unprintable characters */
         if (!isprint(ch))
@@ -225,35 +202,26 @@ devcall ttyRead(device *devptr, void *buf, uint len)
         }
 
         if(left != 0){
-          /* #jmv8443
-           * shift characters in the TTY input buffer */
+           /* shift characters in the TTY input buffer */
           for(i = left; i >= 0; i--){
             ttyptr->in[(ttyptr->istart + ttyptr->icount - left + i + 1) % TTY_IBLEN] =
               ttyptr->in[(ttyptr->istart + ttyptr->icount - left  + i) % TTY_IBLEN];
           }
 
-          //          printf("%d, %d, %d\n", ttyptr->istart, ttyptr->icount, left);
-
           /* Place character in TTY input buffer */
           ttyptr->in[(ttyptr->istart + ttyptr->icount - left) % TTY_IBLEN] = ch;
           ttyptr->icount++;
 
-          printf("\033[s");           // save cursor position
+          printf("\033[s");                                // save cursor position
           printf("\033[%dD", ttyptr->icount - left - 1);   // move the cursor to the end of the line
-          printf("\033[K"); // delete to end of line
-
-          //          for( i = 0; i < ttyptr->icount - 1; i++){
-          //            printf("\b");             // delete what i need to
-          //          }
+          printf("\033[K");                                // delete to end of line
 
           for( i = 0; i < ttyptr->icount; i++){
             printf("%c", ttyptr->in[ttyptr->istart + i]);
-            //ttyEcho(devptr, ttyptr->in[i]);
           }
 
-          printf("\033[u");  // unsave cursor
-          printf("\033[1C"); // move it one over
-          //printf("\n\nleft: %d, icount: %d\n", left, ttyptr->icount);
+          printf("\033[u");                                // unsave cursor
+          printf("\033[1C");                               // move it one over
 
           continue;
 
