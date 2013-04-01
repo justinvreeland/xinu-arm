@@ -59,8 +59,6 @@ shellcmd xsh_arp(int, char *[]);
 shellcmd xsh_clear(int, char *[]);
 shellcmd xsh_dumptlb(int, char *[]);
 shellcmd xsh_date(int, char *[]);
-shellcmd xsh_printtos(int, char *[]);
-shellcmd xsh_printprocstks(int, char *[]);
 shellcmd xsh_ethstat(int, char *[]);
 shellcmd xsh_exit(int, char *[]);
 shellcmd xsh_flashstat(int, char *[]);
