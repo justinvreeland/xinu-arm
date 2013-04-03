@@ -9,6 +9,7 @@
 #include<stdio.h>
 #include<string.h>
 #include<stdlib.h>
+#include "ext2.h"
 
 # if 0
 // TODO: Ext2 Superblock Operations
