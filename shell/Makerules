@@ -39,6 +39,9 @@ C_FILES += xsh_nvram.c
 # Test commands
 C_FILES += xsh_test.c xsh_testsuite.c
 
+# Ext2 commands
+C_FILES += xsh_ext2.c
+
 S_FILES =
 
 # Add the files to the compile source path
