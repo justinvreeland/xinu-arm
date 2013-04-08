@@ -8,18 +8,17 @@
 #include <string.h>
 #include <stdio.h>
 
-int numHistoryItems = 0;		// number of history items currently stored
-int currentHistoryIndex = 0;	// index into the history for when numHistoryItems
-								// is less than HISTORY_LENGTH
-
+int numHistoryItems = 0;	// number of history items currently stored
 history_item history[HISTORY_LENGTH]; // actual storage for the history
 
 // shift all the history items back one item
 void shiftHistoryItems()
 {
 	int i;
-	for(i = 1; i < numHistoryItems; ++i) {
-		history[i - 1] = history[i];
+	for(i = numHistoryItems - 1; i >= 0; --i) {
+		if(i + 1 < HISTORY_LENGTH) {
+			history[i + 1] = history[i];
+		}
 	}
 }
 
@@ -30,18 +29,8 @@ void addHistoryItem(char *command, uint numChars)
 	item.commandLength = numChars;
 	strncpy(item.command, command, SHELL_BUFLEN);
 
-	// history is filled, start overwriting/shifting
-	// to maintain "most recent" ordering
-	if(numHistoryItems == HISTORY_LENGTH) {
-
-		shiftHistoryItems();
-		// newest item will always be at the end
-		history[HISTORY_LENGTH - 1] = item;
-
-	// otherwise, just store it and move the index
-	} else {
-		history[currentHistoryIndex++] = item;
-	}
+	shiftHistoryItems();
+	history[0] = item;
 	
 	// cap numHistoryItems at HISTORY_LENGTH
 	if(numHistoryItems < HISTORY_LENGTH)
@@ -52,8 +41,8 @@ void addHistoryItem(char *command, uint numChars)
 
 void printHistory()
 {
-	int i;
-	for(i = 0; i < numHistoryItems; ++i) {
-		printf("%d: %s\n", i+1, history[i].command);
+	int i, count;
+	for(i = numHistoryItems - 1, count = 1; i >= 0; --i, ++count) {
+		printf("%d: %s", count, history[i].command);
 	}
 }

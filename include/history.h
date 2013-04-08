@@ -15,10 +15,13 @@ typedef struct {
 	uint commandLength;			// number of chars in the command
 } history_item;
 
+extern int numHistoryItems;	// number of history items currently stored
+extern history_item history[HISTORY_LENGTH]; // actual storage for the history
+
 // stores the given command in the history
 void addHistoryItem(char *command, uint numChars);
 
 // print out all the history items in the form "Index: Command\n"
-void printHistory();
+void printHistory(void);
 
 #endif

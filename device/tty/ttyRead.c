@@ -35,6 +35,9 @@ devcall ttyRead(device *devptr, void *buf, uint len)
   /* Setup and error check pointers to structures */
   ttyptr = &ttytab[devptr->minor];
   phw = ttyptr->phw;
+
+  printf("%d\n", ttyptr);
+
   if (NULL == phw)
   {
     return SYSERR;
