@@ -26,7 +26,8 @@ void addHistoryItem(char *command, uint numChars)
 {
 	// create and init the history_item
 	history_item item;
-	item.commandLength = numChars;
+	item.commandLength = numChars-1;
+
 	strncpy(item.command, command, SHELL_BUFLEN);
 
 	shiftHistoryItems();

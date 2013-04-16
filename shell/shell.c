@@ -316,69 +316,39 @@ devcall shellRead(int descrp, void *buf, uint len)
 
             case 'A':
 
-              if( !(historyIndex < numHistoryItems - 1) ){
-                break;
-              }
-
-              historyIndex++;
-
-              printf("\033[%dD", ttyptr->icount - left);
-              printf("\033[K");
-
-              if( historyIndex > 0 ){
-                for( i = 0; i < history[historyIndex].commandLength; i++){
-                  ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN] =
-                    history[historyIndex].command[i];
-                }
-                ttyptr->icount = history[historyIndex].commandLength;
-                for( i = 0; i < ttyptr->icount -1; i++){
-                  printf("%c", ttyptr->in[(ttyptr->istart) % TTY_IBLEN]);
-                }
-             } else {
+              if(historyIndex == -1) {
+//                strncpy(savedBuffer, ttyptr->in[ttyptr->istart], SHELL_BUFLEN);
                 for( i = 0; i < ttyptr->icount; i++){
-                  savedBuffer[i] = ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN];
+                  savedBuffer[i] = ttyptr->in[(ttyptr->istart +i) % TTY_IBLEN];
                 }
                 saveLength = ttyptr->icount;
-                for( i = 0; i < history[historyIndex].commandLength; i++){
+              }
+
+              // dont let historyIndex go out of history bounds
+              if(historyIndex < numHistoryItems - 1) {
+                ++historyIndex;
+
+                for(i = 0; i < history[historyIndex].commandLength; i++){
                   ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN] =
                     history[historyIndex].command[i];
                 }
+                //printf("%s", history[historyIndex].command);
+
+                printf("\033[%dD", ttyptr->icount - left);   // move the cursor to the end of the line
+                if(historyIndex < 1){
+                  printf(" ");
+                }
+                printf("\033[K");                            // delete to end of line
+                //                printf("\033[1C");      // cursor position is off by one somehow
+
                 ttyptr->icount = history[historyIndex].commandLength;
-                for( i = 0; i < ttyptr->icount-1; i++){
+
+                for( i = 0; i < ttyptr->icount; i++){
                   printf("%c", ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN]);
                 }
               }
-              break;
 
-              //              if(historyIndex == -1) {
-              //                strncpy(savedBuffer, ttyptr->in[ttyptr->istart], SHELL_BUFLEN);
-              //                saveLength = ttyptr->icount;
-              //              }
-              //
-              //              // dont let historyIndex go out of history bounds
-              //              if(historyIndex < numHistoryItems - 1) {
-              //                ++historyIndex;
-              //
-              //                for(i = 0; i < history[historyIndex].commandLength; i++){
-              //                  ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN] =
-              //                    history[historyIndex].command[i];
-              //                }
-              //                //printf("%s", history[historyIndex].command);
-              //
-              //                printf("\033[%dD", ttyptr->icount - left);   // move the cursor to the end of the line
-              //                if(historyIndex < 1){
-              //                  printf(" ");
-              //                }
-              //                printf("\033[K");                            // delete to end of line
-              //                //                printf("\033[1C");      // cursor position is off by one somehow
-              //
-              //                ttyptr->icount = history[historyIndex].commandLength-1;
-              //
-              //                for( i = 0; i < ttyptr->icount; i++){
-              //                  printf("%c", ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN]);
-              //                }
-              //
-              //                continue;
+              break;
 
             case 'B':
               if( historyIndex < 0){
@@ -396,11 +366,15 @@ devcall shellRead(int descrp, void *buf, uint len)
                     history[historyIndex].command[i];
                 }
                 ttyptr->icount = history[historyIndex].commandLength;
-                for(i = 0; i < ttyptr->icount-1; i++){
+                for(i = 0; i < ttyptr->icount; i++){
                   printf("%c", ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN]);
                 }
 
               } else {
+
+                //if(historyIndex < 0 ){
+                //  printf(" ");
+                //}
                 for( i = 0; i < saveLength; i++){
                   ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN] =
                     savedBuffer[i];
@@ -411,34 +385,6 @@ devcall shellRead(int descrp, void *buf, uint len)
                 }
               }
 
-
-              // only go down 0 beyond the history bounds
-              // (so we can go back to what the user was typing)
-              //  if(historyIndex >= 0) {
-              //    --historyIndex;
-
-              //    if( historyIndex != -1){
-              //      for(i = 0; i < history[historyIndex].commandLength; i++){
-              //        ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN] =
-              //          history[historyIndex].command[i];
-              //      }
-              //    } else {
-              //      for(i = 0; i < saveLength - 1; i++){
-              //        ttyptr->in[(ttyptr->istart + i) % TTY_IBLEN] =
-              //          savedBuffer[i];
-              //      }
-              //    }
-
-              //    printf("\033[%dD", ttyptr->icount - left);
-              //    printf("\033[K");
-
-              //    ttyptr->icount = saveLength;
-              //    ttyptr->icount = history[historyIndex].commandLength-1;
-
-              //    for(i = 0; i < ttyptr->icount; i++){
-              //      printf("%c", ttyptr->in[ttyptr->istart + i % TTY_IBLEN]);
-              //    }
-              //  }
               break;
 
             case 'C': // right arrow
@@ -454,372 +400,372 @@ devcall shellRead(int descrp, void *buf, uint len)
               }
               break;
           }// switch
-          } // if
+        } // if
+        break;
+
+      default:
+        /* Ignore unprintable characters */
+        if (!isprint(ch))
+        {
+          continue;
+        }
+
+        if(left != 0){
+          /* shift characters in the TTY input buffer */
+          for(i = left; i >= 0; i--){
+            ttyptr->in[(ttyptr->istart + ttyptr->icount - left + i + 1) % TTY_IBLEN] =
+              ttyptr->in[(ttyptr->istart + ttyptr->icount - left  + i) % TTY_IBLEN];
+          }
+
+          /* Place character in TTY input buffer */
+          ttyptr->in[(ttyptr->istart + ttyptr->icount - left) % TTY_IBLEN] = ch;
+          ttyptr->icount++;
+
+          printf("\033[s");                                // save cursor position
+          printf("\033[%dD", ttyptr->icount - left - 1);   // move the cursor to the end of the line
+          printf("\033[K");                                // delete to end of line
+
+          for( i = 0; i < ttyptr->icount; i++){
+            printf("%c", ttyptr->in[ttyptr->istart + i]);
+          }
+
+          printf("\033[u");                                // unsave cursor
+          printf("\033[1C");                               // move it one over
+          continue;
+
+        } else {
+
+          /* Place character in TTY input buffer */
+          ttyptr->in[(ttyptr->istart + ttyptr->icount - left) % TTY_IBLEN] =
+            ch;
+          ttyptr->icount++;
           break;
-
-          default:
-          /* Ignore unprintable characters */
-          if (!isprint(ch))
-          {
-            continue;
-          }
-
-          if(left != 0){
-            /* shift characters in the TTY input buffer */
-            for(i = left; i >= 0; i--){
-              ttyptr->in[(ttyptr->istart + ttyptr->icount - left + i + 1) % TTY_IBLEN] =
-                ttyptr->in[(ttyptr->istart + ttyptr->icount - left  + i) % TTY_IBLEN];
-            }
-
-            /* Place character in TTY input buffer */
-            ttyptr->in[(ttyptr->istart + ttyptr->icount - left) % TTY_IBLEN] = ch;
-            ttyptr->icount++;
-
-            printf("\033[s");                                // save cursor position
-            printf("\033[%dD", ttyptr->icount - left - 1);   // move the cursor to the end of the line
-            printf("\033[K");                                // delete to end of line
-
-            for( i = 0; i < ttyptr->icount; i++){
-              printf("%c", ttyptr->in[ttyptr->istart + i]);
-            }
-
-            printf("\033[u");                                // unsave cursor
-            printf("\033[1C");                               // move it one over
-            continue;
-
-          } else {
-
-            /* Place character in TTY input buffer */
-            ttyptr->in[(ttyptr->istart + ttyptr->icount - left) % TTY_IBLEN] =
-              ch;
-            ttyptr->icount++;
-            break;
-          }
         }
-
-        if( !escape ){
-
-          /* Echo character if TTY_ECHO flag is set */
-          if (ttyptr->iflags & TTY_ECHO)
-          {
-            shellttyEcho(devptr, ch);
-          }
-
-          if (ttyptr->iflags & TTY_IRAW)
-          {
-            break;
-          }
-
-        }
-        escape = 0;
     }
 
-    /* Fill user buffer from input buffer */
-    while ((0 < ttyptr->icount) && (count < len))
-    {
-      *buffer++ = ttyptr->in[ttyptr->istart];
-      ttyptr->icount--;
-      ttyptr->istart = (ttyptr->istart + 1) % TTY_IBLEN;
-      count++;
-    }
+    if( !escape ){
 
-    /* If TTY input buffer is empty, clear idelimiter flag */
-    if (0 == ttyptr->icount)
-    {
-      ttyptr->idelim = FALSE;
-    }
-
-    /* If nothing was read, and the eof flag was set, return EOF */
-    if ((0 == count) && (ttyptr->ieof))
-    {
-      ttyptr->ieof = FALSE;
-      return EOF;
-    }
-
-    return count;
-  }
-
-  /**
-   * The Xinu shell.  Provides an interface to execute commands.
-   * @param descrp descriptor of device on which the shell is open
-   * @return OK for successful exit, SYSERR for unrecoverable error
-   */
-  thread shell(int indescrp, int outdescrp, int errdescrp)
-  {
-    char buf[SHELL_BUFLEN];     /* line input buffer        */
-    short buflen;               /* length of line input     */
-    char tokbuf[SHELL_BUFLEN + SHELL_MAXTOK];   /* token value buffer       */
-    short ntok;                 /* number of tokens         */
-    char *tok[SHELL_MAXTOK];    /* pointers to token values */
-    char *outname;              /* name of output file      */
-    char *inname;               /* name of input file       */
-    bool background;            /* is background proccess?  */
-    syscall child;              /* pid of child thread      */
-    ushort i, j;                /* temp variables           */
-    irqmask im;                 /* interrupt mask state     */
-
-    /* hostname variables */
-    char hostnm[NET_HOSTNM_MAXLEN + 1]; /* hostname of backend      */
-    char *hostptr;              /* pointer to hostname      */
-    int hostname_strsz;         /* nvram hostname name size */
-    device *devptr;             /* device pointer           */
-
-    printf( "Welcome to the shell!\n" );
-
-    /* Enable interrupts */
-    enable();
-
-    hostptr = NULL;
-    devptr = NULL;
-    hostname_strsz = 0;
-    bzero(hostnm, NET_HOSTNM_MAXLEN + 1);
-
-    /* Setup buffer for string for nvramGet call for hostname */
-#ifdef ETH0
-    if (!isbaddev(ETH0))
-    {
-      /* Determine the hostname of the main network device */
-      devptr = (device *)&devtab[ETH0];
-      hostname_strsz = strnlen(NET_HOSTNAME, NVRAM_STRMAX) + 1;
-      hostname_strsz += DEVMAXNAME;
-      char nvramget_hostname_str[hostname_strsz];
-      sprintf(nvramget_hostname_str, "%s_%s", devptr->name,
-          NET_HOSTNAME);
-
-      /* Acquire the backend's hostname */
-#if NVRAM
-      hostptr = nvramGet(nvramget_hostname_str);
-#endif                          /* NVRAM */
-      if (hostptr != NULL)
+      /* Echo character if TTY_ECHO flag is set */
+      if (ttyptr->iflags & TTY_ECHO)
       {
-        memcpy(hostnm, hostptr, NET_HOSTNM_MAXLEN);
-        hostptr = hostnm;
-      }
-    }
-#endif
-
-    /* Set command devices for input, output, and error */
-    stdin = indescrp;
-    stdout = outdescrp;
-    stderr = errdescrp;
-
-    /* Print shell banner */
-    printf(SHELL_BANNER);
-    /* Print shell welcome message */
-    printf(SHELL_START);
-
-    /* Continually receive and handle commands */
-    while (TRUE)
-    {
-      /* Display prompt */
-      printf(SHELL_PROMPT);
-
-      if (NULL != hostptr)
-      {
-        printf("@%s$ ", hostptr);
-      }
-      else
-      {
-        printf("$ ");
+        shellttyEcho(devptr, ch);
       }
 
-      /* Setup proper tty modes for input and output */
-      control(stdin, TTY_CTRL_CLR_IFLAG, TTY_IRAW, NULL);
-      control(stdin, TTY_CTRL_SET_IFLAG, TTY_ECHO, NULL);
-
-      /* Null out the buf and read command */
-      memset(buf, '\0', SHELL_BUFLEN);
-      buflen = shellRead(stdin, buf, SHELL_BUFLEN);
-
-      if(buf[0] != '!') {
-        addHistoryItem(buf, buflen);
-      }
-
-      /* Check for EOF and exit gracefully if seen */
-      if (EOF == buflen)
+      if (ttyptr->iflags & TTY_IRAW)
       {
         break;
       }
 
-      if (buflen == 3 && buf[0] == '!' && buf[1] == '!')
+    }
+    escape = 0;
+  }
+
+  /* Fill user buffer from input buffer */
+  while ((0 < ttyptr->icount) && (count < len))
+  {
+    *buffer++ = ttyptr->in[ttyptr->istart];
+    ttyptr->icount--;
+    ttyptr->istart = (ttyptr->istart + 1) % TTY_IBLEN;
+    count++;
+  }
+
+  /* If TTY input buffer is empty, clear idelimiter flag */
+  if (0 == ttyptr->icount)
+  {
+    ttyptr->idelim = FALSE;
+  }
+
+  /* If nothing was read, and the eof flag was set, return EOF */
+  if ((0 == count) && (ttyptr->ieof))
+  {
+    ttyptr->ieof = FALSE;
+    return EOF;
+  }
+
+  return count;
+}
+
+/**
+ * The Xinu shell.  Provides an interface to execute commands.
+ * @param descrp descriptor of device on which the shell is open
+ * @return OK for successful exit, SYSERR for unrecoverable error
+ */
+thread shell(int indescrp, int outdescrp, int errdescrp)
+{
+  char buf[SHELL_BUFLEN];     /* line input buffer        */
+  short buflen;               /* length of line input     */
+  char tokbuf[SHELL_BUFLEN + SHELL_MAXTOK];   /* token value buffer       */
+  short ntok;                 /* number of tokens         */
+  char *tok[SHELL_MAXTOK];    /* pointers to token values */
+  char *outname;              /* name of output file      */
+  char *inname;               /* name of input file       */
+  bool background;            /* is background proccess?  */
+  syscall child;              /* pid of child thread      */
+  ushort i, j;                /* temp variables           */
+  irqmask im;                 /* interrupt mask state     */
+
+  /* hostname variables */
+  char hostnm[NET_HOSTNM_MAXLEN + 1]; /* hostname of backend      */
+  char *hostptr;              /* pointer to hostname      */
+  int hostname_strsz;         /* nvram hostname name size */
+  device *devptr;             /* device pointer           */
+
+  printf( "Welcome to the shell!\n" );
+
+  /* Enable interrupts */
+  enable();
+
+  hostptr = NULL;
+  devptr = NULL;
+  hostname_strsz = 0;
+  bzero(hostnm, NET_HOSTNM_MAXLEN + 1);
+
+  /* Setup buffer for string for nvramGet call for hostname */
+#ifdef ETH0
+  if (!isbaddev(ETH0))
+  {
+    /* Determine the hostname of the main network device */
+    devptr = (device *)&devtab[ETH0];
+    hostname_strsz = strnlen(NET_HOSTNAME, NVRAM_STRMAX) + 1;
+    hostname_strsz += DEVMAXNAME;
+    char nvramget_hostname_str[hostname_strsz];
+    sprintf(nvramget_hostname_str, "%s_%s", devptr->name,
+        NET_HOSTNAME);
+
+    /* Acquire the backend's hostname */
+#if NVRAM
+    hostptr = nvramGet(nvramget_hostname_str);
+#endif                          /* NVRAM */
+    if (hostptr != NULL)
+    {
+      memcpy(hostnm, hostptr, NET_HOSTNM_MAXLEN);
+      hostptr = hostnm;
+    }
+  }
+#endif
+
+  /* Set command devices for input, output, and error */
+  stdin = indescrp;
+  stdout = outdescrp;
+  stderr = errdescrp;
+
+  /* Print shell banner */
+  printf(SHELL_BANNER);
+  /* Print shell welcome message */
+  printf(SHELL_START);
+
+  /* Continually receive and handle commands */
+  while (TRUE)
+  {
+    /* Display prompt */
+    printf(SHELL_PROMPT);
+
+    if (NULL != hostptr)
+    {
+      printf("@%s$ ", hostptr);
+    }
+    else
+    {
+      printf("$ ");
+    }
+
+    /* Setup proper tty modes for input and output */
+    control(stdin, TTY_CTRL_CLR_IFLAG, TTY_IRAW, NULL);
+    control(stdin, TTY_CTRL_SET_IFLAG, TTY_ECHO, NULL);
+
+    /* Null out the buf and read command */
+    memset(buf, '\0', SHELL_BUFLEN);
+    buflen = shellRead(stdin, buf, SHELL_BUFLEN);
+
+    if(buf[0] != '!') {
+      addHistoryItem(buf, buflen);
+    }
+
+    /* Check for EOF and exit gracefully if seen */
+    if (EOF == buflen)
+    {
+      break;
+    }
+
+    if (buflen == 3 && buf[0] == '!' && buf[1] == '!')
+    {
+      //replace buf and buflen with the last command
+      //printf("%s\n", history[0].command);
+      strncpy(buf, history[0].command, SHELL_BUFLEN);
+      buflen = history[0].commandLength;
+      //continue;
+    }
+
+    /* Parse line input into tokens */
+    if (SYSERR == (ntok = lexan(buf, buflen, &tokbuf[0], &tok[0])))
+    {
+      fprintf(stderr, SHELL_SYNTAXERR);
+      continue;
+    }
+
+    /* Ensure parse generated tokens */
+    if (0 == ntok)
+    {
+      continue;
+    }
+
+    /* Initialize command options */
+    inname = NULL;
+    outname = NULL;
+    background = FALSE;
+
+    /* Mark as background thread, if last token is '&' */
+    if ('&' == *tok[ntok - 1])
+    {
+      ntok--;
+      background = TRUE;
+    }
+
+    /* Check each token and perform special handling of '>' and '<' */
+    for (i = 0; i < ntok; i++)
+    {
+      /* Background '&' should have already been handled; Syntax error */
+      if ('&' == *tok[i])
       {
-        //replace buf and buflen with the last command
-        //printf("%s\n", history[0].command);
-        strncpy(buf, history[0].command, SHELL_BUFLEN);
-        buflen = history[0].commandLength;
-        //continue;
+        ntok = -1;
+        break;
       }
 
-      /* Parse line input into tokens */
-      if (SYSERR == (ntok = lexan(buf, buflen, &tokbuf[0], &tok[0])))
+      /* Setup for output redirection if token is '>'  */
+      if ('>' == *tok[i])
       {
-        fprintf(stderr, SHELL_SYNTAXERR);
-        continue;
-      }
-
-      /* Ensure parse generated tokens */
-      if (0 == ntok)
-      {
-        continue;
-      }
-
-      /* Initialize command options */
-      inname = NULL;
-      outname = NULL;
-      background = FALSE;
-
-      /* Mark as background thread, if last token is '&' */
-      if ('&' == *tok[ntok - 1])
-      {
-        ntok--;
-        background = TRUE;
-      }
-
-      /* Check each token and perform special handling of '>' and '<' */
-      for (i = 0; i < ntok; i++)
-      {
-        /* Background '&' should have already been handled; Syntax error */
-        if ('&' == *tok[i])
+        /* Syntax error */
+        if (outname != NULL || i >= ntok - 1)
         {
           ntok = -1;
           break;
         }
 
-        /* Setup for output redirection if token is '>'  */
-        if ('>' == *tok[i])
+        outname = tok[i + 1];
+        ntok -= 2;
+
+        /* shift tokens (not to be passed to command */
+        for (j = i; j < ntok; j++)
         {
-          /* Syntax error */
-          if (outname != NULL || i >= ntok - 1)
-          {
-            ntok = -1;
-            break;
-          }
-
-          outname = tok[i + 1];
-          ntok -= 2;
-
-          /* shift tokens (not to be passed to command */
-          for (j = i; j < ntok; j++)
-          {
-            tok[j] = tok[j + 2];
-          }
-          continue;
+          tok[j] = tok[j + 2];
         }
-
-        /* Setup for input redirection if token is '<' */
-        if ('<' == *tok[i])
-        {
-          /* Syntax error */
-          if (inname != NULL || i >= ntok - 1)
-          {
-            ntok = -1;
-            break;
-          }
-          inname = tok[i + 1];
-          ntok -= 2;
-
-          /* shift tokens (not to be passed to command */
-          for (j = i; j < ntok; j++)
-          {
-            tok[j] = tok[j + 2];
-          }
-
-          continue;
-        }
-      }
-
-      /* Handle syntax error */
-      if (ntok <= 0)
-      {
-        fprintf(stderr, SHELL_SYNTAXERR);
         continue;
       }
 
-      /* Lookup first token in the command table */
-      for (i = 0; i < ncommand; i++)
+      /* Setup for input redirection if token is '<' */
+      if ('<' == *tok[i])
       {
-        if (0 == strncmp(commandtab[i].name, tok[0], SHELL_BUFLEN))
+        /* Syntax error */
+        if (inname != NULL || i >= ntok - 1)
         {
+          ntok = -1;
           break;
         }
-      }
+        inname = tok[i + 1];
+        ntok -= 2;
 
-      /* Handle command not found */
-      if (i >= ncommand)
-      {
-        fprintf(stderr, "%s: command not found\n", tok[0]);
-        continue;
-      }
-
-      /* Handle command if it is built-in */
-      if (commandtab[i].builtin)
-      {
-        if (inname != NULL || outname != NULL || background)
+        /* shift tokens (not to be passed to command */
+        for (j = i; j < ntok; j++)
         {
-          fprintf(stderr, SHELL_SYNTAXERR);
+          tok[j] = tok[j + 2];
         }
-        else
-        {
-          (*commandtab[i].procedure) (ntok, tok);
-        }
+
         continue;
-      }
-
-      /* Spawn child thread for non-built-in commands */
-      child =
-        create(commandtab[i].procedure,
-            SHELL_CMDSTK, SHELL_CMDPRIO,
-            commandtab[i].name, 2, ntok, tok);
-
-      /* Ensure child command thread was created successfully */
-      if (SYSERR == child)
-      {
-        fprintf(stderr, SHELL_CHILDERR);
-        continue;
-      }
-
-      /* Set file descriptors for newly created thread */
-      if (NULL == inname)
-      {
-        thrtab[child].fdesc[0] = stdin;
-      }
-      else
-      {
-        thrtab[child].fdesc[0] = getdev(inname);
-      }
-      if (NULL == outname)
-      {
-        thrtab[child].fdesc[1] = stdout;
-      }
-      else
-      {
-        thrtab[child].fdesc[1] = getdev(outname);
-      }
-      thrtab[child].fdesc[2] = stderr;
-
-      if (background)
-      {
-        /* Make background thread ready, but don't reschedule */
-        im = disable();
-        ready(child, RESCHED_NO);
-        restore(im);
-      }
-      else
-      {
-        /* Clear waiting message; Reschedule; */
-        while (recvclr() != NOMSG);
-        im = disable();
-        ready(child, RESCHED_YES);
-        restore(im);
-
-        /* Wait for command thread to finish */
-        while (receive() != child);
-        sleep(10);
       }
     }
 
-    /* Close shell */
-    fprintf(stdout, SHELL_EXIT);
-    sleep(10);
-    return OK;
+    /* Handle syntax error */
+    if (ntok <= 0)
+    {
+      fprintf(stderr, SHELL_SYNTAXERR);
+      continue;
+    }
+
+    /* Lookup first token in the command table */
+    for (i = 0; i < ncommand; i++)
+    {
+      if (0 == strncmp(commandtab[i].name, tok[0], SHELL_BUFLEN))
+      {
+        break;
+      }
+    }
+
+    /* Handle command not found */
+    if (i >= ncommand)
+    {
+      fprintf(stderr, "%s: command not found\n", tok[0]);
+      continue;
+    }
+
+    /* Handle command if it is built-in */
+    if (commandtab[i].builtin)
+    {
+      if (inname != NULL || outname != NULL || background)
+      {
+        fprintf(stderr, SHELL_SYNTAXERR);
+      }
+      else
+      {
+        (*commandtab[i].procedure) (ntok, tok);
+      }
+      continue;
+    }
+
+    /* Spawn child thread for non-built-in commands */
+    child =
+      create(commandtab[i].procedure,
+          SHELL_CMDSTK, SHELL_CMDPRIO,
+          commandtab[i].name, 2, ntok, tok);
+
+    /* Ensure child command thread was created successfully */
+    if (SYSERR == child)
+    {
+      fprintf(stderr, SHELL_CHILDERR);
+      continue;
+    }
+
+    /* Set file descriptors for newly created thread */
+    if (NULL == inname)
+    {
+      thrtab[child].fdesc[0] = stdin;
+    }
+    else
+    {
+      thrtab[child].fdesc[0] = getdev(inname);
+    }
+    if (NULL == outname)
+    {
+      thrtab[child].fdesc[1] = stdout;
+    }
+    else
+    {
+      thrtab[child].fdesc[1] = getdev(outname);
+    }
+    thrtab[child].fdesc[2] = stderr;
+
+    if (background)
+    {
+      /* Make background thread ready, but don't reschedule */
+      im = disable();
+      ready(child, RESCHED_NO);
+      restore(im);
+    }
+    else
+    {
+      /* Clear waiting message; Reschedule; */
+      while (recvclr() != NOMSG);
+      im = disable();
+      ready(child, RESCHED_YES);
+      restore(im);
+
+      /* Wait for command thread to finish */
+      while (receive() != child);
+      sleep(10);
+    }
   }
+
+  /* Close shell */
+  fprintf(stdout, SHELL_EXIT);
+  sleep(10);
+  return OK;
+}
