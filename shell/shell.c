@@ -586,13 +586,29 @@ thread shell(int indescrp, int outdescrp, int errdescrp)
       break;
     }
 
-    if (buflen == 3 && buf[0] == '!' && buf[1] == '!')
+    // Check for indicator of history command
+    if (buf[0] == '!')
     {
+      int index;
+
+      // handler for !! (just execute most recent command)
+      if(buf[1] == '!') {
+        index = 0;
+      } else {
+        // extract the number string
+        char indexString[buflen];
+        strncpy(indexString, &buf[1], buflen - 1);
+        indexString[buflen] = '\0';
+
+        // convert number string into a valid index
+        // calculation is done because the index numbers
+        // are reverse of their numbers printed using 'history'
+        index = numHistoryItems - atoi(indexString);
+      }
+
       //replace buf and buflen with the last command
-      //printf("%s\n", history[0].command);
-      strncpy(buf, history[0].command, SHELL_BUFLEN);
-      buflen = history[0].commandLength;
-      //continue;
+      strncpy(buf, history[index].command, SHELL_BUFLEN);
+      buflen = history[index].commandLength + 1;
     }
 
     /* Parse line input into tokens */
