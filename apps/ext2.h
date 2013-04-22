@@ -58,8 +58,6 @@ typedef          int    int32;
 typedef          short  int16;
 typedef          char   int8;
 
-uint32 mem_lower_bound = MEM_LOWER_BOUND;
-
 struct ext2_super_block {
     uint32      s_inodes_count;                 // Total number of inodes
     uint32      s_blocks_count;                 // Filesystem size in blocks
@@ -68,7 +66,7 @@ struct ext2_super_block {
     uint32      s_free_inodes_count;            // Free inodes counter
     uint32      s_first_data_block;             // Num of 1st blk (always 1)
     uint32      s_log_block_size;               // Block size
-     int32      s_log_frag_size;                    // Fragment size
+    uint32      s_log_frag_size;                    // Fragment size
     uint32      s_blocks_per_group;             // Number of blocks per group
     uint32      s_frags_per_group;              // Number of fragments per group
     uint32      s_inodes_per_group;             // Number of inodes per group
