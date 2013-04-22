@@ -49,6 +49,8 @@
 #define EXT2_OS_LITES   4       // Lites
 #define EXT2_OS_XINU    12      // Xinu
 
+#define DIR_SEP '/'
+#define EXT2_INODE_ROOT 1
 typedef unsigned int    uint32;
 typedef unsigned short  uint16;
 typedef unsigned char   uint8;

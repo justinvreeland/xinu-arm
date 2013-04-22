@@ -35,16 +35,6 @@ get_next_dirent( struct ext2_dir_entry_2 * dirent)
 { return ((void *) dirent) + dirent->rec_len; }
 
 /*
- * Determine if the size of this dirent is too large (i.e. the last file entry)
- */
-static inline int dirent_is_too_large( struct ext2_dir_entry_2 *dirent) {
-
-    uint16 size = sizeof( struct ext2_dir_entry_2) + dirent->name_len;
-    if (size %4)
-        size += 4-(size %4);
-    return size < dirent->rec_len;
-}
-/*
  * Num of data blocks a single indirect block can point to
  */
 static inline uint32 indirect_data_block_size( struct ext2_filesystem *fs)
@@ -67,7 +57,7 @@ struct ext2_super_block * ext2_get_superblock(uint32 fs_start);
 /*
  * Init the fs
  */
-void _fs_ext2_init() {
+void _fs_ext2_init(void) {
 
     xinu_fs = (struct ext2_filesystem*)mem_lower_bound;
     mem_lower_bound += sizeof( struct ext2_filesystem );
@@ -160,10 +150,11 @@ void print_inode (struct ext2_inode *in, int num) {
  * Fills the given buffer with up to nbytes of data drom the given
  * directory entry and returns the number of bytes read.
  */
-uint32 ext2_read_dirent (struct ext2_filesystem *fs, struct ext2_dir_entry_2 *file,
-                           void *buffer, uint32 start, uint32 nbytes) {
+uint32 ext2_read_dirent (struct ext2_filesystem *fs,
+                         struct ext2_dir_entry_2 *file,
+                         void *buffer, uint32 start, uint32 nbytes) {
     uint32 iNum = file->inode;
-    struct ext2_inode *fp = ext2_get_inode(fs, iNum+1);
+    struct ext2_inode *fp = ext2_get_inode(fs, iNum);
     uint32 block_size = get_block_size( fs->sb);
     // TO DO: IMPLEMENT INDIRECT BLOCKS
 
@@ -199,7 +190,71 @@ uint32 ext2_read_dirent (struct ext2_filesystem *fs, struct ext2_dir_entry_2 *fi
     return (nbytes - remaining);
 }
 
-int ext2() {
+struct ext2_dir_entry_2* ext2_get_dirent_from_inode ( struct ext2_filesystem *fs,
+                                                    struct ext2_inode *dir_ino,
+                                                    const char *filename ) {
+    uint32 filename_len = strnlen( filename, EXT2_NAME_LEN);
+    uint32 block_size = get_block_size( fs->sb );
+    int i;
+    // TODO: MAKE WORK WITH INDIRECT BLOCKS
+    for (i = 0; i < EXT2_NDIR_BLOCKS; i++) {
+        uint32 block_num = dir_ino->i_block[i];
+        struct ext2_dir_entry_2 *dirent = (struct ext2_dir_entry_2 *)
+                                           block_num_to_addr(fs, block_num);
+        struct ext2_dir_entry_2 *first_dirent = dirent;
+        int go_to_next_block = 0;
+        while ( dirent->inode ) {
+            if (filename_len == dirent->name_len &&
+                !strncmp( filename, dirent->name, dirent->name_len )) {
+                return dirent;
+            } else {
+                dirent = get_next_dirent( dirent );
+                if ( dirent > (first_dirent + block_size) ) {
+                    go_to_next_block = 1;
+                    break;
+                }
+            }
+        }
+        if ( !go_to_next_block )
+            break;
+    }
+    return 0;
+}
+
+struct ext2_dir_entry_2 * ext2_get_dirent_from_path( struct ext2_filesystem *fs,
+                                                     const char *dirpath,
+                                                     const char *filename ) {
+    if (dirpath[0] == DIR_SEP )
+        dirpath++;
+    uint dir_len = strchr(dirpath, DIR_SEP) - dirpath;
+
+    char curr_dir_name[strnlen(dirpath, EXT2_NAME_LEN) +1];
+
+    struct ext2_inode *curr_inode;
+    curr_inode = ext2_get_inode( fs, EXT2_INODE_ROOT );
+
+    struct ext2_dir_entry_2 *curr_dirent =
+        ext2_get_dirent_from_inode( fs, curr_inode, ".");
+
+    while (*dirpath) {
+        memcpy( curr_dir_name, dirpath, dir_len );
+        curr_dir_name[dir_len] = '\0';
+        dirpath += dir_len+1;
+
+        curr_dirent = ext2_get_dirent_from_inode( fs, curr_inode, curr_dir_name );
+
+        if (curr_dirent == 0)
+            return 0;
+        dir_len = strchr(dirpath, DIR_SEP) - dirpath;
+        curr_inode = ext2_get_inode(fs, curr_dirent->inode);
+    }
+
+    struct ext2_inode *dirent_inode = ext2_get_inode(fs, curr_dirent->inode);
+
+    return ext2_get_dirent_from_inode( fs, dirent_inode, filename );
+}
+
+int ext2(void) {
     printf("Hello World, this is the Ext2 FS\n");
 
     // Hardcode test fs into memory so that we can test read
@@ -241,21 +296,21 @@ int ext2() {
 
     // Set up the block bitmap
     uint8 *blBitmap;
-    blBitmap = (uint8 *) (gpd + 1024/sizeof(struct ext2_group_desc));
+    blBitmap = (uint8 *) (sb + 2);
     blBitmap[0] = 0x7F;      // super block
     int i;
     for (i = 6; i < sb->s_blocks_count; i++)
         blBitmap[i] = 0;
     // Set up the inode bitmap
     uint8 *iBitmap;
-    iBitmap = (uint8 *) (blBitmap + 1024/sizeof(uint8));
+    iBitmap = (uint8 *) (sb + 3);
     iBitmap[0] = 0x3;     // .
     for (i = 1; i < sb->s_inodes_count; i++)
         iBitmap[i] = 0;
 
     // Set up the inode table
     struct ext2_inode *iTbl;
-    iTbl = (struct ext2_inode *) (iBitmap + 1024/sizeof(uint8));
+    iTbl = (struct ext2_inode *) (sb + 4);
     // Set up . inode
     iTbl->i_mode = EXT2_S_IFDIR;
     iTbl->i_size = sizeof(struct ext2_dir_entry_2);
@@ -265,14 +320,14 @@ int ext2() {
     iTbl->i_block[0] = 5;
 
     // Set up . entry for the home directory
-    struct ext2_dir_entry_2 *blk6;
-    blk6 = (struct ext2_dir_entry_2 *) (iTbl + 1024/sizeof(struct ext2_inode));
-    blk6->inode = 0;
-    blk6->rec_len = 2112;
-    blk6->name_len = 2;
-    blk6->filetype = 2;
+    struct ext2_dir_entry_2 *blk5;
+    blk5 = (struct ext2_dir_entry_2 *) (sb + 5);
+    blk5->inode = 1;
+    blk5->rec_len = sizeof(struct ext2_dir_entry_2);
+    blk5->name_len = 1;
+    blk5->filetype = 2;
     char homeName[255] = ".";
-    memcpy(blk6->name, homeName, 255);
+    memcpy(blk5->name, homeName, 255);
 
     // Set up test inode
     struct ext2_inode *i2 = iTbl+1;
@@ -284,34 +339,47 @@ int ext2() {
     i2->i_block[0] = 6;
 
     // Set up test entry for home directory
-    struct ext2_dir_entry_2 * testDirent;
-    testDirent = blk6 + 1;
-    testDirent->inode = 1;
-    testDirent->rec_len = 2112;
-    testDirent->name_len = 5;
+    struct ext2_dir_entry_2 *testDirent;
+    testDirent = get_next_dirent(blk5);
+    testDirent->inode = 2;
+    testDirent->rec_len = sizeof(struct ext2_dir_entry_2);
+    testDirent->name_len = 4;
     testDirent->filetype = 1;
     char testName[255] = "test";
     memcpy(testDirent->name, testName, 255);
 
+    // Write dir ent with -1 to denote end of dir entries
+    struct ext2_dir_entry_2 *end = get_next_dirent(testDirent);
+    end->inode = 0;
+
     // Write test data
     char test[15] = "Testing 1 2 3 ";
-    void * blk7 = (void *) (iTbl + 2*1024/sizeof(struct ext2_inode));
-    memcpy(blk7, test, 15);
+    void *blk6 = (void *) (sb + 6);
+    memcpy(blk6, test, 15);
 
     // Test the read functions written above
     _fs_ext2_init();
     print_superblock( xinu_fs->sb );
-    struct ext2_inode * i1 = ext2_get_inode(xinu_fs, 1);
+    struct ext2_inode *i1 = ext2_get_inode(xinu_fs, 1);
     print_inode( i1, 1 );
-    struct ext2_dir_entry_2 * home = ext2_get_first_dirent(xinu_fs, i1 );
+    struct ext2_dir_entry_2 *home = ext2_get_first_dirent(xinu_fs, i1 );
     print_dirent( home );
     char buffer[255];
-    struct ext2_dir_entry_2 * testF = home + 1;
-    struct ext2_inode * testi = ext2_get_inode(xinu_fs, testF->inode + 1);
+    struct ext2_dir_entry_2 *testF = home + 1;
+    struct ext2_inode *testi = ext2_get_inode(xinu_fs, testF->inode);
     print_inode( testi, 2 );
     print_dirent( testF );
     int read = ext2_read_dirent( xinu_fs, testF, buffer, 0, 254 );
     printf("Read %d bytes buffer = %s\n", read, buffer);
 
+    struct ext2_dir_entry_2 *home2 =
+        ext2_get_dirent_from_inode(xinu_fs, i1, ".");
+    print_dirent( home2 );
+    struct ext2_dir_entry_2 *test2 =
+        ext2_get_dirent_from_inode(xinu_fs, i1, "test");
+    print_dirent( test2 );
+    struct ext2_dir_entry_2 *test3 =
+        ext2_get_dirent_from_path(xinu_fs, "./", "test");
+    print_dirent( test3);
     return 0;
 }
