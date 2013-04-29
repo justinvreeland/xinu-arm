@@ -35,7 +35,7 @@ void print_dirent(struct ext2_dir_entry_2 * dirent) {
 /*
  * Returns a pointer to the superblock
  */
-struct ext2_super_block * ext2_get_superblock( uint32 fs_start ) {
+struct ext2_super_block * get_superblock( uint32 fs_start ) {
 
     struct ext2_super_block *sb;
     uint32 sb_start = fs_start + (EXT2_SUPERBLOCK_LOCATION);
@@ -60,7 +60,7 @@ void print_superblock( struct ext2_super_block *sb ) {
 /*
  * Returns the inode with the given number (indexed at 1)
  */
-struct ext2_inode * ext2_get_inode( struct ext2_filesystem *fs, uint32 inode_num ) {
+struct ext2_inode * get_inode( struct ext2_filesystem *fs, uint32 inode_num ) {
 
     struct ext2_super_block *sb = fs->sb;
     if ( inode_num > sb->s_inodes_count )
@@ -89,6 +89,11 @@ void print_inode (struct ext2_inode *in, int num) {
     printf("\ti_size = %d\n", in->i_size);
     printf("\ti_flags = 0x%x\n", in->i_flags);
     printf("\tFirst block of data = %d\n", in->i_block[0]);
+    int i = 1;
+    while (in->i_block[i]) {
+        printf("\tBlock %d of data = %d\n",i, in->i_block[i]);
+        i++;
+    }
 }
 
 /*
@@ -99,7 +104,7 @@ uint32 ext2_read_dirent (struct ext2_filesystem *fs,
                          struct ext2_dir_entry_2 *file,
                          void *buffer, uint32 start, uint32 nbytes) {
     uint32 iNum = file->inode;
-    struct ext2_inode *fp = ext2_get_inode(fs, iNum);
+    struct ext2_inode *fp = get_inode(fs, iNum);
     uint32 block_size = get_block_size( fs->sb);
     // TO DO: IMPLEMENT INDIRECT BLOCKS
 
@@ -157,7 +162,7 @@ struct ext2_dir_entry_2* ext2_get_dirent_from_inode (struct ext2_filesystem *fs,
                 !strncmp( filename, dirent->name, dirent->name_len )) {
                 return dirent;
             } else {
-                dirent = get_next_dirent( dirent );
+                dirent = ext2_get_next_dirent( dirent );
                 if ( dirent > (first_dirent + block_size) ) {
                     go_to_next_block = 1;
                     break;
@@ -183,7 +188,7 @@ struct ext2_dir_entry_2 * ext2_get_dirent_from_path( struct ext2_filesystem *fs,
     char curr_dir_name[strnlen(dirpath, EXT2_NAME_LEN) +1];
 
     struct ext2_inode *curr_inode;
-    curr_inode = ext2_get_inode( fs, EXT2_INODE_ROOT );
+    curr_inode = get_inode( fs, EXT2_INODE_ROOT );
 
     struct ext2_dir_entry_2 *curr_dirent =
         ext2_get_dirent_from_inode( fs, curr_inode, ".");
@@ -198,10 +203,10 @@ struct ext2_dir_entry_2 * ext2_get_dirent_from_path( struct ext2_filesystem *fs,
         if (curr_dirent == 0)
             return 0;
         dir_len = strchr(dirpath, DIR_SEP) - dirpath;
-        curr_inode = ext2_get_inode(fs, curr_dirent->inode);
+        curr_inode = get_inode(fs, curr_dirent->inode);
     }
 
-    struct ext2_inode *dirent_inode = ext2_get_inode(fs, curr_dirent->inode);
+    struct ext2_inode *dirent_inode = get_inode(fs, curr_dirent->inode);
 
     return ext2_get_dirent_from_inode( fs, dirent_inode, filename );
 }

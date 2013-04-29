@@ -23,7 +23,7 @@ void _fs_ext2_init(void) {
 
     xinu_fs = (struct ext2_filesystem*)mem_lower_bound;
     mem_lower_bound += sizeof( struct ext2_filesystem );
-    xinu_fs->sb = ext2_get_superblock( VIRT_MEM_LOCATION );
+    xinu_fs->sb = get_superblock( VIRT_MEM_LOCATION );
     xinu_fs->base_addr = (uint32) VIRT_MEM_LOCATION;
 
 }
@@ -103,13 +103,42 @@ int ext2(void) {
     char homeName[255] = ".";
     memcpy(blk5->name, homeName, 255);
 
-    // Test the read functions written above
+    // Test the read/write functions
     _fs_ext2_init();
+    printf("Testing hardcoded data\n");
     print_superblock( xinu_fs->sb );
-    struct ext2_inode *i1 = ext2_get_inode(xinu_fs, 1);
+    struct ext2_inode *i1 = get_inode(xinu_fs, 1);
     print_inode( i1, 1 );
     struct ext2_dir_entry_2 *home = ext2_get_first_dirent(xinu_fs, i1 );
     print_dirent( home );
+
+    uint32 inode_num = ext2_inode_alloc( xinu_fs );
+    struct ext2_inode *i2 = get_inode( xinu_fs, inode_num+1 );
+    i2->i_mode = EXT2_S_IFREG;
+    i2->i_size = 0;
+    printf("Allocated new inode\n");
+    print_inode( i2, inode_num+1 );
+
+    struct ext2_dir_entry_2 *dirent = ext2_dirent_alloc( xinu_fs, i1 );
+    dirent->inode = 2;
+    dirent->rec_len = sizeof(struct ext2_dir_entry_2);
+    dirent->name_len = 4;
+    dirent->filetype = EXT2_FT_REG_FILE;
+    char testName[255] = "test";
+    memcpy(dirent->name, testName, 255);
+    printf("Allocated new dir_entry_2 test\n");
+    print_dirent( dirent );
+
+    char path[8] = "./test";
+    char buffer[14] = "Writing! Yay!";
+    uint32 bytes_written;
+    ext2_write_status stat = ext2_write_file_by_path( xinu_fs, path, buffer,
+                                                      &bytes_written, 0, 13 );
+    printf("bytes_written = %d stat = %d\n", bytes_written, stat);
+    int read = 0;
+    char readBuf[30];
+    read = ext2_read_dirent( xinu_fs, dirent, readBuf, 0, 29);
+    printf("Read %d bytes readBuf = %s\n", read, readBuf);
 
     return 0;
 }

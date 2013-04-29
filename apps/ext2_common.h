@@ -8,6 +8,10 @@
 #include<string.h>
 #include<stdlib.h>
 #include "ext2.h"
+#include "ext2_read.h"
+
+#ifndef _EXT2_COMMON_H
+#define _EXT2_READ_H
 
 /*
  * Return the size of a block in the fs with the given sb
@@ -27,7 +31,7 @@ static inline void * block_num_to_addr( struct ext2_filesystem *fs,
  * Get the next file entry
  */
 static inline struct ext2_dir_entry_2 *
-get_next_dirent( struct ext2_dir_entry_2 * dirent)
+ext2_get_next_dirent( struct ext2_dir_entry_2 * dirent)
 
 { return ((void *) dirent) + dirent->rec_len; }
 
@@ -42,10 +46,88 @@ static inline uint32 indirect_data_block_size( struct ext2_filesystem *fs)
 /*
  * Return a pointer to the block of the given index in the inode table
  */
-static inline uint32* get_inode_block ( struct ext2_inode *fp,
+static inline uint32* get_inode_block( struct ext2_inode *fp,
                                         uint32 logical_index ) {
     if (logical_index >= 12)
         printf("EXT2: No support for indirect blocks.\n");
     return &(fp->i_block[logical_index]);
 }
 
+/*
+ * Returns the inode with the given number (indexed at 1)
+ */
+struct ext2_inode * get_inode( struct ext2_filesystem *fs, uint32 inode_num );
+
+/*
+ * Prints the given dirent
+ */
+void print_dirent(struct ext2_dir_entry_2 * dirent);
+
+/*
+ * Returns a pointer to the superblock
+ */
+struct ext2_super_block * get_superblock( uint32 fs_start );
+
+/*
+ * Prints the given suberblock
+ */
+void print_superblock( struct ext2_super_block *sb );
+
+/*
+ * Prints the given inode
+ */
+void print_inode (struct ext2_inode *in, int num);
+
+/*
+ * Converts the block number to the block group number holding that block
+ */
+static inline uint32 blk_to_blk_grp(struct ext2_filesystem *fs, uint32 blk_num){
+    return blk_num / fs->sb->s_blocks_per_group;
+}
+
+/*
+ * Returns a pointer to the block bitmap for the block group which holds the
+ * blk_num
+ */
+uint32 * get_blk_bitmap(struct ext2_filesystem *fs, uint32 blk_num);
+
+/*
+ * Returns a pointer to the inode bitmap for the block group
+ */
+uint32 * get_inode_bitmap( struct ext2_filesystem *fs,
+                                uint32 inode_num );
+
+/*
+ * Returns 1 if the inode is used, 0 otherwise
+ */
+int inode_is_used( struct ext2_filesystem *fs, uint32 inode_num );
+
+/*
+ * Returns 1 if the block is used, 0 otherwise
+ */
+int blk_is_used( struct ext2_filesystem *fs, uint32 blk_num);
+
+/*
+ * Mark the given inode as occupied
+ */
+void mark_inode_used( struct ext2_filesystem *fs, uint32 inode_num );
+
+/*
+ * Mark the given block as occupied
+ */
+void mark_blk_used(struct ext2_filesystem *fs, uint32 blk_num);
+
+/*
+ * Allocate the first available block
+ * Returns the block number or 0 if none are available
+ */
+uint32 blk_alloc( struct ext2_filesystem *fs );
+
+/*
+ * Adds blocks to the given inode to accomodate nbytes of data
+ * returns the num successfully allocated
+ */
+uint32 increase_inode_size( struct ext2_filesystem *fs,
+                                 struct ext2_inode *fp, uint32 nbytes);
+
+#endif
