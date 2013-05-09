@@ -18,7 +18,7 @@ This image can be run with the following command:
     qemu-system-arm -M versatilepb -m 128M -nographic -cpu arm926 -kernel xinu.bin -s
 
 
-
+TESTING
 -----------------------
 README: information about the directory tree and how to build an image.
 Embedded Xinu, Copyright (C) 2008, 2009, 2010, 2012.  All rights reserved.

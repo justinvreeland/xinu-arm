@@ -65,6 +65,8 @@ shellcmd xsh_ext2(int, char *p[]);
 shellcmd xsh_flashstat(int, char *[]);
 shellcmd xsh_gpiostat(int, char *[]);
 shellcmd xsh_help(int, char *[]);
+shellcmd xsh_history(int, char *[]);
+shellcmd xsh_charCatch(int, char *[]);
 shellcmd xsh_kill(int, char *[]);
 shellcmd xsh_led(int, char *[]);
 shellcmd xsh_memdump(int, char *[]);
@@ -77,7 +79,6 @@ shellcmd xsh_netdown(int, char *[]);
 shellcmd xsh_nvram(int, char *[]);
 shellcmd xsh_ping(int, char *[]);
 shellcmd xsh_ps(int, char *[]);
-shellcmd xsh_rdate(int, char *[]);
 shellcmd xsh_reset(int, char *[]);
 shellcmd xsh_route(int, char *[]);
 shellcmd xsh_sleep(int, char *[]);
@@ -94,5 +95,5 @@ shellcmd xsh_user(int, char *[]);
 shellcmd xsh_vlanstat(int, char *[]);
 shellcmd xsh_voip(int, char *[]);
 shellcmd xsh_xweb(int, char *[]);
-
+shellcmd xsh_echo(int, char *[]);
 #endif                          /* _SHELL_H_ */
