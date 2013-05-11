@@ -51,7 +51,7 @@ void ls( struct ext2_filesystem *fs, char *path ) {
     while ( currDirent->inode &&
             ( currDirent - firstDirent < dirInode->i_size ) ) {
         printf( "%s\n", currDirent->name );
-        currDirent = ext2_get_next_dirent( fs, currDirent );
+        currDirent = ext2_get_next_dirent( fs, currDirent, dirInode );
     }
 }
 
@@ -89,12 +89,15 @@ void touch( struct ext2_filesystem *fs, char *path, char *name ) {
 
     struct ext2_dir_entry_2 *newDirent = ext2_dirent_alloc( fs, dirInode );
 
+    if (!newDirent) {
+        printf("touch: No dirent available\n");
+        return;
+    }
     newDirent->inode = newInodeNum;
     memcpy( newDirent->name, name, strnlen( name, EXT2_NAME_LEN ) );
     newDirent->rec_len = sizeof( struct ext2_dir_entry_2 );
     newDirent->name_len = strnlen( name, EXT2_NAME_LEN );
     newDirent->filetype = EXT2_FT_REG_FILE;
-
 }
 
 /*
@@ -120,6 +123,22 @@ void cat( struct ext2_filesystem *fs, char *path, char *name ) {
     buffer[read] = 0;
     printf( "%s\n", buffer );
 }
+
+/*
+ * Remove a file
+ */
+void rm( struct ext2_filesystem *fs, char *path, char *name ) {
+
+    struct ext2_dir_entry_2 *file = ext2_get_dirent_from_path( fs, path, name );
+    if (!file) {
+        return;
+    }
+
+    ext2_dirent_dealloc( file );
+    ext2_inode_dealloc( fs, file->inode );
+
+}
+
 
 int ext2(void) {
     printf("Hello World, this is the Ext2 FS\n");
@@ -207,6 +226,15 @@ int ext2(void) {
     ext2_write_status stat = ext2_write_file_by_path( xinu_fs, "./test", bufferL,
                                                       &bytes_written, 0, 8 );
     cat( xinu_fs, "./", "test");
+
+    touch( xinu_fs, "./", "yo");
+
+    ls( xinu_fs, "./" );
+    stat = ext2_write_file_by_path( xinu_fs, "./yo", bufferL,
+                                                      &bytes_written, 0, 8 );
+    ls( xinu_fs, "./" );
+    rm( xinu_fs, "./", "yo" );
+    ls( xinu_fs, "./" );
 
 #if 0
     // Test the read/write functions

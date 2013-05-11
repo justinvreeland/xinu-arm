@@ -50,8 +50,8 @@ struct ext2_dir_entry_2 * ext2_get_first_dirent( struct ext2_filesystem *fs,
  * Get the next file entry
  */
 struct ext2_dir_entry_2 * ext2_get_next_dirent( struct ext2_filesystem *fs,
-                                                struct ext2_dir_entry_2 * dirent );
-
+                                                struct ext2_dir_entry_2 *dirent,
+                                                struct ext2_inode *dir_ino );
 
 /*
  * Fills the given buffer with up to nbytes of data drom the file with the given

@@ -20,7 +20,7 @@
 #define EXT2_SUPERBLOCK_SIZE                    1024
 #define EXT2_BLOCK_GROUP_DESCRIPTOR_SIZE        32
 #define EXT2_INODE_SIZE                         128
-#define EXT2_NAME_LEN                           255
+#define EXT2_NAME_LEN                           247
 
 // Constants relative to the data blocks
 #define EXT2_NDIR_BLOCKS        12

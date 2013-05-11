@@ -26,10 +26,10 @@ struct ext2_dir_entry_2 * ext2_get_first_dirent( struct ext2_filesystem *fs,
  * Get the next file entry
  */
 struct ext2_dir_entry_2 * ext2_get_next_dirent( struct ext2_filesystem *fs,
-                                                struct ext2_dir_entry_2 *dirent ) {
+                                                struct ext2_dir_entry_2 *dirent,
+                                                struct ext2_inode *dir_ino ) {
 
     int i;
-    struct ext2_inode *dir_ino = ext2_get_inode( fs, dirent->inode );
     int size = dir_ino->i_size % get_block_size( fs->sb );
     for ( i = 0; i < dir_ino->i_blocks; i++ ) {
         struct ext2_dir_entry_2 *currDirent = (struct ext2_dir_entry_2 *)
@@ -221,7 +221,7 @@ struct ext2_dir_entry_2* ext2_get_dirent_from_inode (struct ext2_filesystem *fs,
                 !strncmp( filename, dirent->name, dirent->name_len )) {
                 return dirent;
             } else {
-                dirent = ext2_get_next_dirent( fs, dirent );
+                dirent = ext2_get_next_dirent( fs, dirent, dir_ino );
                 if ( dirent > (first_dirent + block_size) ) {
                     go_to_next_block = 1;
                     break;

@@ -48,4 +48,15 @@ ext2_write_status ext2_write_file_by_path( struct ext2_filesystem *fs,
                                            uint32 *bytes_written,
                                            uint32 start,
                                            uint32 nbytes );
+
+/*
+ * Deallocates the given inode and its blocks
+ */
+void ext2_inode_dealloc( struct ext2_filesystem *fs, uint32 inode_num );
+
+/*
+ * Deallocate the given dirent
+ */
+void ext2_dirent_dealloc( struct ext2_dir_entry_2 *dirent);
+
 #endif
