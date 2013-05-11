@@ -13,6 +13,11 @@
 #define _EXT2_READ_H
 
 /*
+ * Returns the inode with the given number (indexed at 1)
+ */
+struct ext2_inode * ext2_get_inode( struct ext2_filesystem *fs, uint32 inode_num );
+
+/*
  * Fills the given buffer with up to nbytes of data drom the given
  * directory entry and returns the number of bytes read.
  */
@@ -40,5 +45,21 @@ struct ext2_dir_entry_2 * ext2_get_dirent_from_path( struct ext2_filesystem *fs,
  */
 struct ext2_dir_entry_2 * ext2_get_first_dirent( struct ext2_filesystem *fs,
                                                 struct ext2_inode * dir );
+
+/*
+ * Get the next file entry
+ */
+struct ext2_dir_entry_2 * ext2_get_next_dirent( struct ext2_filesystem *fs,
+                                                struct ext2_dir_entry_2 * dirent );
+
+
+/*
+ * Fills the given buffer with up to nbytes of data drom the file with the given
+ * path and returns the number of bytes read.
+ */
+uint32 ext2_read_file_from_path( struct ext2_filesystem *fs, char *path,
+                          char *filename, void *buffer,
+                          uint32 start, uint32 nbytes );
+
 
 #endif

@@ -141,7 +141,7 @@ uint32 ext2_inode_alloc( struct ext2_filesystem *fs ) {
     for ( i = 0; i<fs->sb->s_inodes_count; i++ ) {
         if ( !inode_is_used( fs, i ) ) {
             mark_inode_used( fs, i );
-            return i;
+            return i+1;
         }
     }
     // everything is used
@@ -178,12 +178,13 @@ struct ext2_dir_entry_2 * ext2_dirent_alloc( struct ext2_filesystem *fs,
         blk_end = 0;
         // While the current dirent is occupied
         while ( dirent->inode ) {
-            dirent = ext2_get_next_dirent( dirent );
+            dirent = ext2_get_next_dirent( fs, dirent );
             // If we have run out of space in the current block
             if ( ( dirent-start ) >= get_block_size( fs->sb ) ) {
                 // Get the next block
                 if ( i < EXT2_NDIR_BLOCKS ) {
-                    dirent = block_num_to_addr( fs, inode->i_block[i+1] );
+                    start = block_num_to_addr( fs, inode->i_block[i+1] );
+                    dirent = start;
                 } else {
                     blk_num = inode->i_block[EXT2_NDIR_BLOCKS] +
                                   ( i - EXT2_NDIR_BLOCKS );
@@ -219,7 +220,11 @@ uint32 increase_inode_size( struct ext2_filesystem *fs,
     uint32 total_bytes = nbytes;
 
     if ( init_size % blk_size ) {
-        nbytes -= blk_size - ( init_size % blk_size );
+        int decr = blk_size - ( init_size % blk_size );
+        if ( decr > nbytes )
+            nbytes = 0;
+        else
+            nbytes -= decr;
         blk_index ++;
     }
 
@@ -279,7 +284,7 @@ uint32 ext2_write_file_by_inode( struct ext2_filesystem *fs,
                                  void *buffer, uint32 start, uint32 nbytes ) {
 
     uint32 inode_num = file->inode;
-    struct ext2_inode *fp = get_inode( fs, inode_num );
+    struct ext2_inode *fp = ext2_get_inode( fs, inode_num );
     uint32 blk_size = get_block_size( fs->sb );
 
     if ( fp->i_size < ( nbytes+start ) ) {
@@ -318,7 +323,6 @@ uint32 ext2_write_file_by_inode( struct ext2_filesystem *fs,
 
         char *data = (char *) ( blk_offset +
                               (void *)block_num_to_addr( fs, blk_num ));
-
         void *indir_blk;
 
         if ( inode_blk_index == EXT2_NDIR_BLOCKS ) {
@@ -326,7 +330,7 @@ uint32 ext2_write_file_by_inode( struct ext2_filesystem *fs,
             if ( indir_inode_blk_index < indirect_data_block_size( fs ) )
                 inode_blk_index --;
             data = block_num_to_addr( fs,
-                                    *( (uint32 *) indir_blk + indir_inode_blk_index ) );
+                            *( (uint32 *) indir_blk + indir_inode_blk_index ) );
             data += blk_offset;
             indir_inode_blk_index ++;
         }

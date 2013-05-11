@@ -23,6 +23,39 @@ struct ext2_dir_entry_2 * ext2_get_first_dirent( struct ext2_filesystem *fs,
 }
 
 /*
+ * Get the next file entry
+ */
+struct ext2_dir_entry_2 * ext2_get_next_dirent( struct ext2_filesystem *fs,
+                                                struct ext2_dir_entry_2 *dirent ) {
+
+    int i;
+    struct ext2_inode *dir_ino = ext2_get_inode( fs, dirent->inode );
+    int size = dir_ino->i_size % get_block_size( fs->sb );
+    for ( i = 0; i < dir_ino->i_blocks; i++ ) {
+        struct ext2_dir_entry_2 *currDirent = (struct ext2_dir_entry_2 *)
+                                block_num_to_addr( fs, dir_ino->i_block[i] );
+        if ( dirent - currDirent < get_block_size( fs->sb ) ) {
+            // If we have gone past the file size
+            if ( i + 1 == dir_ino->i_blocks && dirent - currDirent > size )
+                return 0;
+            dirent++;
+            if ( dirent - currDirent < get_block_size( fs->sb ) ) {
+                return dirent;
+            } else if ( i+1 < dir_ino->i_blocks ) {
+                dirent = (struct ext2_dir_entry_2 *)
+                          block_num_to_addr( fs, dir_ino->i_block[i+1] );
+                return dirent;
+            } else {
+                // There is no next dirent
+                return 0;
+            }
+        }
+    }
+    // Should never make it to this point
+    return 0;
+}
+
+/*
  * Prints the given dirent
  */
 void print_dirent( struct ext2_dir_entry_2 * dirent ) {
@@ -60,13 +93,14 @@ void print_superblock( struct ext2_super_block *sb ) {
 /*
  * Returns the inode with the given number (indexed at 1)
  */
-struct ext2_inode * get_inode( struct ext2_filesystem *fs, uint32 inode_num ) {
+struct ext2_inode * ext2_get_inode( struct ext2_filesystem *fs, uint32 inode_num ) {
 
     struct ext2_super_block *sb = fs->sb;
-    if ( inode_num > sb->s_inodes_count )
+    if ( inode_num > sb->s_inodes_count ) {
         printf( "Requested inode num: %d out of bounds. Max num: %d\n",
                inode_num, sb->s_inodes_count );
-
+        return 0;
+    }
     uint32 block_group = inode_num/sb->s_inodes_per_group;
 
     // Assume every blockgroup has a superblock for now
@@ -112,7 +146,7 @@ uint32 ext2_read_dirent ( struct ext2_filesystem *fs,
                          struct ext2_dir_entry_2 *file,
                          void *buffer, uint32 start, uint32 nbytes ) {
     uint32 iNum = file->inode;
-    struct ext2_inode *fp = get_inode( fs, iNum );
+    struct ext2_inode *fp = ext2_get_inode( fs, iNum );
     uint32 block_size = get_block_size( fs->sb );
 
     // make sure buffer is big enough
@@ -182,12 +216,12 @@ struct ext2_dir_entry_2* ext2_get_dirent_from_inode (struct ext2_filesystem *fs,
                                            block_num_to_addr(fs, block_num);
         struct ext2_dir_entry_2 *first_dirent = dirent;
         int go_to_next_block = 0;
-        while ( dirent->inode ) {
+        while ( dirent ) {
             if (filename_len == dirent->name_len &&
                 !strncmp( filename, dirent->name, dirent->name_len )) {
                 return dirent;
             } else {
-                dirent = ext2_get_next_dirent( dirent );
+                dirent = ext2_get_next_dirent( fs, dirent );
                 if ( dirent > (first_dirent + block_size) ) {
                     go_to_next_block = 1;
                     break;
@@ -213,7 +247,7 @@ struct ext2_dir_entry_2 * ext2_get_dirent_from_path( struct ext2_filesystem *fs,
     char curr_dir_name[strnlen( dirpath, EXT2_NAME_LEN ) +1];
 
     struct ext2_inode *curr_inode;
-    curr_inode = get_inode( fs, EXT2_INODE_ROOT );
+    curr_inode = ext2_get_inode( fs, EXT2_INODE_ROOT );
 
     struct ext2_dir_entry_2 *curr_dirent =
         ext2_get_dirent_from_inode( fs, curr_inode, "." );
@@ -222,16 +256,26 @@ struct ext2_dir_entry_2 * ext2_get_dirent_from_path( struct ext2_filesystem *fs,
         memcpy( curr_dir_name, dirpath, dir_len );
         curr_dir_name[dir_len] = '\0';
         dirpath += dir_len+1;
-
         curr_dirent = ext2_get_dirent_from_inode( fs, curr_inode, curr_dir_name );
-
-        if ( curr_dirent == 0 )
-            return 0;
         dir_len = strchr( dirpath, DIR_SEP ) - dirpath;
-        curr_inode = get_inode( fs, curr_dirent->inode );
+        curr_inode = ext2_get_inode( fs, curr_dirent->inode );
     }
 
-    struct ext2_inode *dirent_inode = get_inode( fs, curr_dirent->inode );
-
+    struct ext2_inode *dirent_inode = ext2_get_inode( fs, curr_dirent->inode );
     return ext2_get_dirent_from_inode( fs, dirent_inode, filename );
+}
+
+/*
+ * Fills the given buffer with up to nbytes of data drom the file with the given
+ * path and returns the number of bytes read.
+ */
+uint32 ext2_read_file_from_path( struct ext2_filesystem *fs, char *path,
+                          char *filename, void *buffer,
+                          uint32 start, uint32 nbytes ) {
+
+    struct ext2_dir_entry_2 *file = ext2_get_dirent_from_path( fs, path, filename );
+    if ( !file ) {
+        return 0;
+    }
+    return ext2_read_dirent( fs, file, buffer, start, nbytes );
 }

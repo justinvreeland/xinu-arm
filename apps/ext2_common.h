@@ -28,14 +28,6 @@ static inline void * block_num_to_addr( struct ext2_filesystem *fs,
 { return (void *) ( fs->base_addr + EXT2_SUPERBLOCK_LOCATION ) +
                     ( block_number * get_block_size( fs->sb ) ); }
 /*
- * Get the next file entry
- */
-static inline struct ext2_dir_entry_2 *
-ext2_get_next_dirent( struct ext2_dir_entry_2 * dirent )
-
-{ return ( (void *) dirent ) + dirent->rec_len; }
-
-/*
  * Num of data blocks a single indirect block can point to
  */
 static inline uint32 indirect_data_block_size( struct ext2_filesystem *fs )
@@ -59,11 +51,6 @@ static inline uint32* get_inode_block( struct ext2_filesystem *fs,
     }
     return &( fp->i_block[logical_index] );
 }
-
-/*
- * Returns the inode with the given number (indexed at 1)
- */
-struct ext2_inode * get_inode( struct ext2_filesystem *fs, uint32 inode_num );
 
 /*
  * Prints the given dirent
