@@ -4,9 +4,9 @@
  * Description: Write functionality for the ext2
  */
 
-#include<stdio.h>
-#include<string.h>
-#include<stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 #include "ext2_write.h"
 #include "ext2_common.h"
 
@@ -155,21 +155,25 @@ uint32 ext2_inode_alloc( struct ext2_filesystem *fs ) {
 struct ext2_dir_entry_2 * ext2_dirent_alloc( struct ext2_filesystem *fs,
                                              struct ext2_inode *inode ) {
 
-    struct ext2_dir_entry_2 *start = ext2_get_first_dirent( fs, inode);
+    struct ext2_dir_entry_2 *start = ext2_get_first_dirent( fs, inode );
     struct ext2_dir_entry_2 *dirent = start;
 
     // If there is not space for the new dirent, allocate it
     if ( inode->i_size + sizeof( struct ext2_dir_entry_2 ) >
          inode->i_blocks * get_block_size( fs->sb ) ) {
+        // If it has already taken up all of its blocks return 0
+        if ( inode->i_blocks == EXT2_N_BLOCKS )
+            return 0;
         uint32 blocks_added = increase_inode_size( fs, inode,
-                                    sizeof( struct ext2_dir_entry_2 ) );
+                                            sizeof( struct ext2_dir_entry_2 ) );
         if ( !blocks_added )
             return 0;
     }
 
     // Now that the inode has enough space for sure, find the first open dirent
-    int i = 0;
+    int i;
     int blk_end = 0;
+    int blk_num;
     for ( i = 0; i < inode->i_blocks; i++ ) {
         blk_end = 0;
         // While the current dirent is occupied
@@ -178,7 +182,13 @@ struct ext2_dir_entry_2 * ext2_dirent_alloc( struct ext2_filesystem *fs,
             // If we have run out of space in the current block
             if ( ( dirent-start ) >= get_block_size( fs->sb ) ) {
                 // Get the next block
-                dirent = block_num_to_addr(fs, inode->i_block[i+1]);
+                if ( i < EXT2_NDIR_BLOCKS ) {
+                    dirent = block_num_to_addr( fs, inode->i_block[i+1] );
+                } else {
+                    blk_num = inode->i_block[EXT2_NDIR_BLOCKS] +
+                                  ( i - EXT2_NDIR_BLOCKS );
+                    dirent = block_num_to_addr( fs, blk_num );
+                }
                 blk_end = 1;
                 break;
             }
@@ -220,13 +230,31 @@ uint32 increase_inode_size( struct ext2_filesystem *fs,
 
     int last_blk_alloc = 0;
     uint i;
+    uint32 *inode_blk;
     for ( i = 0; i< num_blks_to_alloc; i++ ) {
         last_blk_alloc = blk_alloc( fs );
-
         if ( last_blk_alloc ) {
             blks_alloc ++;
-            uint32 *inode_blk = get_inode_block( fp, blk_index+i );
-            *inode_blk = last_blk_alloc;
+            if ( blk_index + i < EXT2_NDIR_BLOCKS ) {
+                inode_blk = get_inode_block( fs, fp, blk_index + i );
+                *inode_blk = last_blk_alloc;
+            } else if ( blk_index + i == EXT2_NDIR_BLOCKS ) {
+                inode_blk = get_inode_block( fs, fp, EXT2_NDIR_BLOCKS );
+                *inode_blk = blk_alloc( fs );
+                //Out of space
+                if (!inode_blk){
+                    blks_alloc --;
+                    break;
+                }
+                uint32 *indir_blk = block_num_to_addr( fs, *inode_blk );
+                *( indir_blk + blk_index + i - EXT2_NDIR_BLOCKS ) = last_blk_alloc;
+            } else if ( blk_index + i < EXT2_N_BLOCKS ){
+                inode_blk = get_inode_block( fs, fp, EXT2_NDIR_BLOCKS );
+                uint32 *indir_blk = block_num_to_addr( fs, *inode_blk );
+                *( indir_blk + i - EXT2_NDIR_BLOCKS ) = last_blk_alloc;
+            } else {
+                break;
+            }
         } else {
             break;
         }
@@ -254,8 +282,6 @@ uint32 ext2_write_file_by_inode( struct ext2_filesystem *fs,
     struct ext2_inode *fp = get_inode( fs, inode_num );
     uint32 blk_size = get_block_size( fs->sb );
 
-    // TODO: implement indirect blocks
-
     if ( fp->i_size < ( nbytes+start ) ) {
         if ( start > fp->i_size ) {
             printf( "Error: data not contiguous\n" );
@@ -268,14 +294,24 @@ uint32 ext2_write_file_by_inode( struct ext2_filesystem *fs,
     uint32 remaining_bytes = nbytes;
     // skip to the block to write into
     uint32 first_inode_blk = start / blk_size;
-    uint32 direct_inode_blk_index = first_inode_blk;
+    uint32 direct_inode_blk_index;
+    uint32 indir_inode_blk_index;
+    if ( first_inode_blk >= EXT2_NDIR_BLOCKS )
+    {
+        indir_inode_blk_index = first_inode_blk - EXT2_NDIR_BLOCKS;
+        direct_inode_blk_index = EXT2_NDIR_BLOCKS;
+    }
+    else {
+        indir_inode_blk_index = 0;
+        direct_inode_blk_index = first_inode_blk;
+    }
 
     // start writing in the middle of a block
     uint32 blk_offset = start % blk_size;
 
     uint32 inode_blk_index;
     for( inode_blk_index = direct_inode_blk_index;
-         inode_blk_index < EXT2_NDIR_BLOCKS;
+         inode_blk_index < EXT2_N_BLOCKS;
          inode_blk_index ++ )                       {
 
         uint32 blk_num = fp->i_block[inode_blk_index];
@@ -283,8 +319,20 @@ uint32 ext2_write_file_by_inode( struct ext2_filesystem *fs,
         char *data = (char *) ( blk_offset +
                               (void *)block_num_to_addr( fs, blk_num ));
 
-        if (remaining_bytes < blk_size) {
-            memcpy(data, buffer, remaining_bytes);
+        void *indir_blk;
+
+        if ( inode_blk_index == EXT2_NDIR_BLOCKS ) {
+            indir_blk = block_num_to_addr( fs, blk_num );
+            if ( indir_inode_blk_index < indirect_data_block_size( fs ) )
+                inode_blk_index --;
+            data = block_num_to_addr( fs,
+                                    *( (uint32 *) indir_blk + indir_inode_blk_index ) );
+            data += blk_offset;
+            indir_inode_blk_index ++;
+        }
+
+        if ( remaining_bytes < blk_size ) {
+            memcpy( data, buffer, remaining_bytes );
             remaining_bytes = 0;
             break;
         }

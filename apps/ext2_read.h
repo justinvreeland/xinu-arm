@@ -16,17 +16,17 @@
  * Fills the given buffer with up to nbytes of data drom the given
  * directory entry and returns the number of bytes read.
  */
-uint32 ext2_read_dirent (struct ext2_filesystem *fs,
+uint32 ext2_read_dirent( struct ext2_filesystem *fs,
                          struct ext2_dir_entry_2 *file,
-                         void *buffer, uint32 start, uint32 nbytes);
+                         void *buffer, uint32 start, uint32 nbytes );
 
 /*
  * Returns the dirent with the given name from the directory's inode
  * 0 if it does not exist
  */
-struct ext2_dir_entry_2* ext2_get_dirent_from_inode (struct ext2_filesystem *fs,
+struct ext2_dir_entry_2* ext2_get_dirent_from_inode( struct ext2_filesystem *fs,
                                                     struct ext2_inode *dir_ino,
-                                                    const char *filename);
+                                                    const char *filename );
 
 /*
  * Returns the dirent with the given path, 0 if it does not exist
@@ -38,7 +38,7 @@ struct ext2_dir_entry_2 * ext2_get_dirent_from_path( struct ext2_filesystem *fs,
 /*
  * Returns a pointer to the first directory entry in the inode
  */
-struct ext2_dir_entry_2 * ext2_get_first_dirent(struct ext2_filesystem *fs,
-                                                struct ext2_inode * dir);
+struct ext2_dir_entry_2 * ext2_get_first_dirent( struct ext2_filesystem *fs,
+                                                struct ext2_inode * dir );
 
 #endif

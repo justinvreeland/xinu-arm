@@ -36,7 +36,7 @@ struct ext2_dir_entry_2 * ext2_dirent_alloc( struct ext2_filesystem *fs,
  */
 uint32 ext2_write_file_by_inode( struct ext2_filesystem *fs,
                                  struct ext2_dir_entry_2 *file,
-                                 void *buffer, uint32 start, uint32 nbytes);
+                                 void *buffer, uint32 start, uint32 nbytes );
 
 /*
  * Write nbytes from buffer into the file given by path starting start bytes in

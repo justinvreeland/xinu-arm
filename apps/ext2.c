@@ -36,23 +36,23 @@ int ext2(void) {
     struct ext2_super_block *sb;
     sb = (struct ext2_super_block*) (VIRT_MEM_LOCATION +
                                      EXT2_SUPERBLOCK_LOCATION);
-    sb->s_inodes_count          = 20;
-    sb->s_blocks_count          = 50;
+    sb->s_inodes_count          = 50;
+    sb->s_blocks_count          = 8192;
     sb->s_r_blocks_count        = 6;
-    sb->s_free_blocks_count     = 43;
-    sb->s_free_inodes_count     = 18;
+    sb->s_free_blocks_count     = 8186;
+    sb->s_free_inodes_count     = 49;
     sb->s_first_data_block      = 1;
     sb->s_log_block_size        = 0;
     sb->s_log_frag_size         = 0;
-    sb->s_blocks_per_group      = 50;
-    sb->s_frags_per_group       = 50;
-    sb->s_inodes_per_group      = 20;
+    sb->s_blocks_per_group      = 8192;
+    sb->s_frags_per_group       = 8192;
+    sb->s_inodes_per_group      = 50;
     sb->s_magic                 = EXT2_MAGIC;
     sb->s_state                 = EXT2_VALID_FS;
     sb->s_errors                = EXT2_ERRORS_CONTINUE;
     sb->s_creator_os            = EXT2_OS_XINU;
     sb->s_first_ino             = 2;
-    sb->s_inode_size            = sizeof(struct ext2_inode);
+    sb->s_inode_size            = sizeof( struct ext2_inode );
     sb->s_block_group_nr        = 0;
     char name[16]               = "FAKE RAM FS :D";
     memcpy(sb->s_volume_name,name,16);
@@ -108,7 +108,7 @@ int ext2(void) {
     printf("Testing hardcoded data\n");
     print_superblock( xinu_fs->sb );
     struct ext2_inode *i1 = get_inode(xinu_fs, 1);
-    print_inode( i1, 1 );
+    print_inode( i1, 1, xinu_fs );
     struct ext2_dir_entry_2 *home = ext2_get_first_dirent(xinu_fs, i1 );
     print_dirent( home );
 
@@ -117,7 +117,7 @@ int ext2(void) {
     i2->i_mode = EXT2_S_IFREG;
     i2->i_size = 0;
     printf("Allocated new inode\n");
-    print_inode( i2, inode_num+1 );
+    print_inode( i2, inode_num+1, xinu_fs );
 
     struct ext2_dir_entry_2 *dirent = ext2_dirent_alloc( xinu_fs, i1 );
     dirent->inode = 2;
@@ -131,13 +131,23 @@ int ext2(void) {
 
     char path[8] = "./test";
     char buffer[14] = "Writing! Yay!";
+    char bufferL[9] = "Go long!";
     uint32 bytes_written;
     ext2_write_status stat = ext2_write_file_by_path( xinu_fs, path, buffer,
                                                       &bytes_written, 0, 13 );
     printf("bytes_written = %d stat = %d\n", bytes_written, stat);
+    char buffer2[12*1024];
+    stat = ext2_write_file_by_path( xinu_fs, path, buffer2,
+                                                      &bytes_written, 13, (12*1024)-1 );
+    printf("bytes_written = %d stat = %d\n", bytes_written, stat);
+    stat = ext2_write_file_by_path( xinu_fs, path, bufferL,
+                                                      &bytes_written, (12*1024)+12, 8 );
+    printf("bytes_written = %d stat = %d\n", bytes_written, stat);
     int read = 0;
     char readBuf[30];
     read = ext2_read_dirent( xinu_fs, dirent, readBuf, 0, 29);
+    printf("Read %d bytes readBuf = %s\n", read, readBuf);
+    read = ext2_read_dirent( xinu_fs, dirent, readBuf, (12*1024)+12, 10);
     printf("Read %d bytes readBuf = %s\n", read, readBuf);
 
     return 0;
