@@ -229,54 +229,6 @@ typedef enum {
     EXT2_RESERVED_FL  =  0x80000000,      // Reserved for ext2 library
 } inode_flags;
 
-// VFS stuff
-// Super-block data in memory
-struct ext2_sb_info {
-    uint32                      s_frag_size;            // Size of a frag in B
-    uint32                      s_frags_per_block;      // Num of frags/block
-    uint32                      s_inodes_per_block;     // Num of inodes/block
-    uint32                      s_frags_per_group;      // Num of frags/group
-    uint32                      s_blocks_per_group;     // Num of blocks/group
-    uint32                      s_inodes_per_group;     // Num of inodes/group
-    uint32                      s_itb_per_group;        // Num inode tbl blkss
-    uint32                      s_gdb_count;            // Num grp descr blks
-    uint32                      s_desc_per_block;       // Num grp descrs/block
-    uint32                      s_groups_count;         // Num grps in the fs
-    uint32                      s_overhead_last;        // Last calced overhead
-    uint32                      s_blocks_last;          // Last block count
-    struct ext2_super_block *   s_es;                   // Ptr to superblock
-    struct ext2_group_desc *    s_group_desc;           // Ptr to grp descr
-    uint32                      s_mount_opt;
-    uint32                      s_sb_block;
-    uint32                      s_resuid;
-    uint32                      s_resgid;
-    uint16                      s_mount_state;
-    uint16                      s_pad;
-    int32                       s_addr_per_block_bits;
-    int32                       s_desc_per_block_bits;
-    int32                       s_inode_size;
-    int32                       s_first_ino;
-    uint32                      s_dir_count;
-    uint8 *                     s_debts;
-    // For simplicity's sake I left out spinlocks so we need to be careful
-};
-
-struct ext2_inode_info {
-    uint32              i_data[15];
-    uint32              i_flags;
-    uint32              i_addr;
-    uint8               i_frag_no;
-    uint8               i_frag_size;
-    uint16              i_state;
-    uint32              i_file_acl;
-    uint32              i_dir_acl;
-    uint32              i_dtime;
-    uint32              i_block_group;          // Blk grp num with this inode
-    uint32              i_dir_start_lookup;
-    struct ext2_inode   vfs_inode;
-    // For simplicity's sake I left out mutex so we need to be careful
-};
-
 struct ext2_filesystem {
     struct ext2_super_block *sb;         // Superblock for the fs
     uint32 base_addr;                   // Base address of the fs
