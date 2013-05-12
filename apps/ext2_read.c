@@ -26,33 +26,9 @@ struct ext2_dir_entry_2 * ext2_get_first_dirent( struct ext2_filesystem *fs,
  * Get the next file entry
  */
 struct ext2_dir_entry_2 * ext2_get_next_dirent( struct ext2_filesystem *fs,
-                                                struct ext2_dir_entry_2 *dirent,
-                                                struct ext2_inode *dir_ino ) {
+                                            struct ext2_dir_entry_2 *dirent ) {
+    return dirent->next_dirent;
 
-    int i;
-    int size = dir_ino->i_size % get_block_size( fs->sb );
-    for ( i = 0; i < dir_ino->i_blocks; i++ ) {
-        struct ext2_dir_entry_2 *currDirent = (struct ext2_dir_entry_2 *)
-                                block_num_to_addr( fs, dir_ino->i_block[i] );
-        if ( dirent - currDirent < get_block_size( fs->sb ) ) {
-            // If we have gone past the file size
-            if ( i + 1 == dir_ino->i_blocks && dirent - currDirent > size )
-                return 0;
-            dirent++;
-            if ( dirent - currDirent < get_block_size( fs->sb ) ) {
-                return dirent;
-            } else if ( i+1 < dir_ino->i_blocks ) {
-                dirent = (struct ext2_dir_entry_2 *)
-                          block_num_to_addr( fs, dir_ino->i_block[i+1] );
-                return dirent;
-            } else {
-                // There is no next dirent
-                return 0;
-            }
-        }
-    }
-    // Should never make it to this point
-    return 0;
 }
 
 /*
@@ -61,7 +37,7 @@ struct ext2_dir_entry_2 * ext2_get_next_dirent( struct ext2_filesystem *fs,
 void print_dirent( struct ext2_dir_entry_2 * dirent ) {
     printf( "Filename: %s\n", dirent->name );
     printf( "\tInode: %d\n\r", dirent->inode );
-    printf( "\tEntry length %d\n", dirent->rec_len );
+    printf( "\tNext Dirent %d\n", dirent->next_dirent );
     printf( "\tFile type %d\n", dirent->filetype );
 }
 
@@ -221,7 +197,7 @@ struct ext2_dir_entry_2* ext2_get_dirent_from_inode (struct ext2_filesystem *fs,
                 !strncmp( filename, dirent->name, dirent->name_len )) {
                 return dirent;
             } else {
-                dirent = ext2_get_next_dirent( fs, dirent, dir_ino );
+                dirent = ext2_get_next_dirent( fs, dirent );
                 if ( dirent > (first_dirent + block_size) ) {
                     go_to_next_block = 1;
                     break;

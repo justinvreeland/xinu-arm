@@ -20,7 +20,7 @@
 #define EXT2_SUPERBLOCK_SIZE                    1024
 #define EXT2_BLOCK_GROUP_DESCRIPTOR_SIZE        32
 #define EXT2_INODE_SIZE                         128
-#define EXT2_NAME_LEN                           247
+#define EXT2_NAME_LEN                           245
 
 // Constants relative to the data blocks
 #define EXT2_NDIR_BLOCKS        12
@@ -166,11 +166,11 @@ struct ext2_inode {
 };
 
 struct ext2_dir_entry_2 {
-    uint32       inode;                 // Inode number
-    uint16       rec_len;               // Directory entry length
-    uint8        name_len;              // Filename length
-    uint8        filetype;              // File type
-    char         name[EXT2_NAME_LEN];   // Filename
+    uint32                              inode;                 // Inode number
+    struct ext2_dir_entry_2            *next_dirent;           // Next direntry
+    uint8                               name_len;              // Filename length
+    uint8                               filetype;              // File type
+    char                                name[EXT2_NAME_LEN];   // Filename
 };
 
 // Defined i_mode values

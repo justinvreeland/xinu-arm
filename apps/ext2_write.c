@@ -102,9 +102,9 @@ void mark_blk_unused( struct ext2_filesystem *fs, uint32 blk_num ) {
     uint32 *blk_bitmap = get_blk_bitmap( fs, blk_num );
     uint32 blk_bitmap_index = ( blk_num % fs->sb->s_blocks_per_group )/32;
 
-    blk_bitmap[blk_bitmap_index] &= 0 << ( blk_num % 32 );
+    blk_bitmap[blk_bitmap_index] &= ~(1 << ( blk_num % 32 ));
 
-    fs->sb->s_free_blocks_count --;
+    fs->sb->s_free_blocks_count ++;
 
     uint32 desc_tbl_blk_num = 1;
     uint32 blk_grp_num = blk_to_blk_grp(fs, blk_num);
@@ -138,9 +138,9 @@ void mark_inode_unused( struct ext2_filesystem *fs, uint32 inode_num ) {
     uint32 *inode_bitmap = get_inode_bitmap( fs, inode_num );
     uint32 inode_bitmap_index = ( inode_num % fs->sb->s_inodes_per_group )/32;
 
-    inode_bitmap[inode_bitmap_index] &= 0 << ( inode_num % 32 );
+    inode_bitmap[inode_bitmap_index] &= ~(1 << ( inode_num % 32 ));
 
-    fs->sb->s_free_inodes_count --;
+    fs->sb->s_free_inodes_count ++;
 
     uint32 desc_tbl_blk_num = 1;
     uint32 blk_grp_num = inode_num/fs->sb->s_inodes_per_group;
@@ -206,37 +206,61 @@ void ext2_inode_dealloc( struct ext2_filesystem *fs, uint32 inode_num ) {
  */
 struct ext2_dir_entry_2 * ext2_dirent_alloc( struct ext2_filesystem *fs,
                                              struct ext2_inode *inode ) {
-
-    struct ext2_dir_entry_2 *start = ext2_get_first_dirent( fs, inode );
-    struct ext2_dir_entry_2 *dirent = start;
-    uint32 size = inode->i_size;
+    uint32 block_size = get_block_size( fs->sb );
+    uint32 prev_size = inode->i_size;
     // Allocate space for new dirent
     uint32 blocks_added = increase_inode_size( fs, inode,
                                      sizeof( struct ext2_dir_entry_2 ) );
-    if ( inode->i_size != (size + sizeof( struct ext2_dir_entry_2 )) )
+
+    if ( inode->i_size != ( prev_size + sizeof( struct ext2_dir_entry_2 )) )
         return 0;
 
     // Now that the inode has enough space for sure, find the first open dirent
-    int i;
-    for ( i = 0; i < inode->i_blocks; i++ ) {
-        // While the current dirent is occupied
-        while ( dirent && dirent->inode ) {
-            dirent = ext2_get_next_dirent( fs, dirent, inode );
+    int i = 0;
+    struct ext2_dir_entry_2 *first_dirent = ext2_get_first_dirent( fs, inode );
+    struct ext2_dir_entry_2 *dirent = first_dirent;
+    struct ext2_dir_entry_2 *prev_dirent = first_dirent;
+    while( dirent ) {
+        // SOMETHING WENT WRONG
+        if ( i > inode->i_blocks )
+            return 0;
+        if( dirent < first_dirent || dirent - first_dirent > block_size ) {
+            i++;
+            first_dirent = block_num_to_addr( fs, inode->i_block[i] );
         }
+        prev_dirent = dirent;
+        dirent = ext2_get_next_dirent( fs, dirent );
     }
+    if ( prev_dirent < first_dirent ||
+         prev_dirent - first_dirent + sizeof( struct ext2_dir_entry_2 ) > block_size )
+        dirent = block_num_to_addr( fs, inode->i_block[i+1] );
+    else
+        dirent = prev_dirent + 1;
+
+    prev_dirent->next_dirent = dirent;
+
     return dirent;
 }
 
 /*
  * Deallocate the given dirent
  */
-void ext2_dirent_dealloc( struct ext2_dir_entry_2 *dirent) {
+void ext2_dirent_dealloc( struct ext2_filesystem *fs,
+                          struct ext2_dir_entry_2 *dirent,
+                          uint32 dir_inode_num ) {
 
-    dirent->inode = 0;
-    dirent->rec_len = 0;
-    dirent->name_len = 0;
-    dirent->filetype = 0;
-    dirent->name[0] = 0;
+    struct ext2_inode *inode = ext2_get_inode( fs, dir_inode_num );
+    struct ext2_dir_entry_2 *prev_dirent = ext2_get_first_dirent( fs, inode );
+    struct ext2_dir_entry_2 *curr_dirent = prev_dirent;
+
+    while( curr_dirent ) {
+        if ( curr_dirent == dirent ) {
+            prev_dirent->next_dirent = curr_dirent->next_dirent;
+            break;
+        }
+        prev_dirent = curr_dirent;
+        curr_dirent = ext2_get_next_dirent( fs, curr_dirent );
+    }
 
 }
 

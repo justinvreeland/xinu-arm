@@ -57,6 +57,8 @@ void ext2_inode_dealloc( struct ext2_filesystem *fs, uint32 inode_num );
 /*
  * Deallocate the given dirent
  */
-void ext2_dirent_dealloc( struct ext2_dir_entry_2 *dirent);
+void ext2_dirent_dealloc( struct ext2_filesystem *fs,
+                          struct ext2_dir_entry_2 *dirent,
+                          uint32 dir_inode_num );
 
 #endif
