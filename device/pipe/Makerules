@@ -1,0 +1,12 @@
+# This Makefile contains rules to build files in the device/pipe/ directory.
+
+# Name of this component (the directory this file is stored in)
+COMP = device/pipe
+
+# Source files for this component
+C_FILES = pipeOpen.c pipeInit.c pipeClose.c pipeRead.c pipeWrite.c pipePutC.c pipeGetC.c
+S_FILES =
+
+# Add the files to the compile source path
+DIR = ${TOPDIR}/${COMP}
+COMP_SRC += ${S_FILES:%=${DIR}/%} ${C_FILES:%=${DIR}/%}
