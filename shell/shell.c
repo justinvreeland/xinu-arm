@@ -18,6 +18,7 @@
 #include <nvram.h>
 #include <conf.h>
 #include <history.h>
+#include <pipe.h>
 
 const struct centry commandtab[] = {
 #if NETHER
@@ -27,13 +28,14 @@ const struct centry commandtab[] = {
     {"date", FALSE, xsh_date},
     {"history", FALSE, xsh_history},
     {"charCatch", FALSE, xsh_charCatch},
+    {"upper", FALSE, xsh_upper},
 #if USE_TLB
   {"dumptlb", FALSE, xsh_dumptlb},
 #endif
 #if NETHER
   {"ethstat", FALSE, xsh_ethstat},
 #endif
-  {"echo", TRUE, xsh_echo},
+  {"echo", FALSE, xsh_echo},
   {"exit", TRUE, xsh_exit},
 #if NFLASH
   {"flashstat", FALSE, xsh_flashstat},
@@ -485,6 +487,56 @@ devcall shellRead(int descrp, void *buf, uint len)
   return count;
 }
 
+// Spawns a child thread for the passed command token
+syscall spawnChildForCommand(char **tok, short ntok)
+{
+  int i;
+
+  /* Handle syntax error */
+  if (ntok <= 0)
+  {
+    fprintf(stderr, SHELL_SYNTAXERR);
+    return -1;
+  }
+
+  /* Lookup first token in the command table */
+  for (i = 0; i < ncommand; i++)
+  {
+    if (0 == strncmp(commandtab[i].name, tok[0], SHELL_BUFLEN))
+    {
+      break;
+    }
+  }
+
+  /* Handle command not found */
+  if (i >= ncommand)
+  {
+    fprintf(stderr, "%s: command not found\n", tok[0]);
+    return -1;
+  }
+
+  // TODO: Pipes can't handle built-in commands because they dont spawn
+  //        child threads
+  /* Handle command if it is built-in */
+  // if (commandtab[i].builtin)
+  // {
+  //   // if (inname != NULL || outname != NULL || background)
+  //   // {
+  //   //   fprintf(stderr, SHELL_SYNTAXERR);
+  //   // }
+  //   // else
+  //   // {
+  //     (*commandtab[i].procedure) (ntok, tok);
+  //   // }
+  //   return -1;
+  // }
+
+  /* Spawn child thread for non-built-in commands */
+  return  create(commandtab[i].procedure,
+            SHELL_CMDSTK, SHELL_CMDPRIO,
+            commandtab[i].name, 2, ntok, tok);
+}
+
 /**
  * The Xinu shell.  Provides an interface to execute commands.
  * @param descrp descriptor of device on which the shell is open
@@ -637,6 +689,12 @@ thread shell(int indescrp, int outdescrp, int errdescrp)
       background = TRUE;
     }
 
+    short numPipes = 0;
+    short commandStartIndexes[NUM_PIPES + 1]; //index number of the start token
+    short commandEndIndexes[NUM_PIPES + 1];
+    commandStartIndexes[0] = 0;
+    commandEndIndexes[0] = ntok - 1;
+
     /* Check each token and perform special handling of '>' and '<' */
     for (i = 0; i < ntok; i++)
     {
@@ -688,96 +746,133 @@ thread shell(int indescrp, int outdescrp, int errdescrp)
 
         continue;
       }
-    }
 
-    /* Handle syntax error */
-    if (ntok <= 0)
-    {
-      fprintf(stderr, SHELL_SYNTAXERR);
-      continue;
-    }
-
-    /* Lookup first token in the command table */
-    for (i = 0; i < ncommand; i++)
-    {
-      if (0 == strncmp(commandtab[i].name, tok[0], SHELL_BUFLEN))
+      // keep track of command locations
+      if ('|' == *tok[i])
       {
+        ++numPipes;
+        commandStartIndexes[numPipes] = i + 1;
+        commandEndIndexes[numPipes - 1] = i - 1;
+      }
+    }
+    commandEndIndexes[numPipes] = i - 1;
+
+    syscall children[numPipes + 1];
+    short spawnChildFailed = FALSE;
+
+    // create process for each command
+    for(i = 0; i <= numPipes; ++i) {
+      short start = commandStartIndexes[i];
+      short end = commandEndIndexes[i];
+      short numToks = end - start + 1;
+      char *commandToks[numToks];
+
+      for(j = 0; j < numToks; ++j) {
+        commandToks[j] = tok[start++];
+      }
+
+      syscall child = spawnChildForCommand(commandToks, numToks);
+
+      if(child != -1) {
+        children[i] = child;
+      } else {
+        spawnChildFailed = TRUE;
         break;
       }
     }
 
-    /* Handle command not found */
-    if (i >= ncommand)
-    {
-      fprintf(stderr, "%s: command not found\n", tok[0]);
+    if(spawnChildFailed) {
       continue;
     }
 
-    /* Handle command if it is built-in */
-    if (commandtab[i].builtin)
-    {
-      if (inname != NULL || outname != NULL || background)
+    /* Clear waiting message; Reschedule; */
+    while (recvclr() != NOMSG);
+    im = disable();
+
+    short executionError = FALSE;
+    for(i = 0; i < numPipes + 1; ++i) {
+      child = children[i];
+
+      /* Ensure child command thread was created successfully */
+      if (SYSERR == child)
       {
-        fprintf(stderr, SHELL_SYNTAXERR);
+        fprintf(stderr, SHELL_CHILDERR);
+        executionError = TRUE;
+        break;
       }
-      else
-      {
-        (*commandtab[i].procedure) (ntok, tok);
+
+      // TODO: Handle redirects
+      // /* Set file descriptors for newly created thread */
+      // if (NULL == inname)
+      // {
+      //   thrtab[child].fdesc[0] = stdin;
+      // }
+      // else
+      // {
+      //   thrtab[child].fdesc[0] = getdev(inname);
+      // }
+      // if (NULL == outname)
+      // {
+      //   thrtab[child].fdesc[1] = stdout;
+      // }
+      // else
+      // {
+      //   thrtab[child].fdesc[1] = getdev(outname);
+      // }
+      // thrtab[child].fdesc[2] = stderr;
+
+      // TODO: Handle more than 2 commands
+      if(numPipes > 0) {
+        if(i == 0) {
+
+          thrtab[child].fdesc[0] = stdin;
+          thrtab[child].fdesc[1] = getdev("PIPE");
+
+        } else if(i == 1) {
+
+          thrtab[child].fdesc[0] = getdev("PIPE");
+          thrtab[child].fdesc[1] = stdout;
+          
+        }
+      } else {
+        thrtab[child].fdesc[0] = stdin;
+        thrtab[child].fdesc[1] = stdout;
       }
-      continue;
+
     }
 
-    /* Spawn child thread for non-built-in commands */
-    child =
-      create(commandtab[i].procedure,
-          SHELL_CMDSTK, SHELL_CMDPRIO,
-          commandtab[i].name, 2, ntok, tok);
+    if (executionError) { continue; }
 
-    /* Ensure child command thread was created successfully */
-    if (SYSERR == child)
-    {
-      fprintf(stderr, SHELL_CHILDERR);
-      continue;
+    if(numPipes == 1) {
+      ready(children[1], RESCHED_YES);
     }
+    ready(children[0], RESCHED_YES);
+    restore(im);
 
-    /* Set file descriptors for newly created thread */
-    if (NULL == inname)
-    {
-      thrtab[child].fdesc[0] = stdin;
-    }
-    else
-    {
-      thrtab[child].fdesc[0] = getdev(inname);
-    }
-    if (NULL == outname)
-    {
-      thrtab[child].fdesc[1] = stdout;
-    }
-    else
-    {
-      thrtab[child].fdesc[1] = getdev(outname);
-    }
-    thrtab[child].fdesc[2] = stderr;
+    /* Wait for command thread to finish */
+    while (receive() != child);
+    sleep(10);
 
-    if (background)
-    {
-      /* Make background thread ready, but don't reschedule */
-      im = disable();
-      ready(child, RESCHED_NO);
-      restore(im);
-    }
-    else
-    {
-      /* Clear waiting message; Reschedule; */
-      while (recvclr() != NOMSG);
-      im = disable();
-      ready(child, RESCHED_YES);
-      restore(im);
+    // TODO: Backgrounding w/ pipes
+    // if (background)
+    // {
+    //   /* Make background thread ready, but don't reschedule */
+    //   im = disable();
+    //   ready(child, RESCHED_NO);
+    //   restore(im);
+    // }
+    // else
+    // {
+    //   // Clear waiting message; Reschedule; 
+    //   while (recvclr() != NOMSG);
+    //   im = disable();
+    //   ready(child, RESCHED_YES);
+    //   restore(im);
 
-      /* Wait for command thread to finish */
-      while (receive() != child);
-      sleep(10);
-    }
+    //   /* Wait for command thread to finish */
+    //   while (receive() != child);
+    //   sleep(10);
+    // }
   }
 
   /* Close shell */

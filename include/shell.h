@@ -66,6 +66,7 @@ shellcmd xsh_gpiostat(int, char *[]);
 shellcmd xsh_help(int, char *[]);
 shellcmd xsh_history(int, char *[]);
 shellcmd xsh_charCatch(int, char *[]);
+shellcmd xsh_upper(int, char *[]);
 shellcmd xsh_kill(int, char *[]);
 shellcmd xsh_led(int, char *[]);
 shellcmd xsh_memdump(int, char *[]);

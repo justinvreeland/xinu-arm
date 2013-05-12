@@ -31,7 +31,6 @@
 #include <safemem.h>
 
 
-
 /* Linker provides start and end of image */
 extern void _start(void);       /* start of Xinu code                  */
 
