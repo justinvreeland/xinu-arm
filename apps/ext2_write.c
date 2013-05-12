@@ -218,6 +218,10 @@ struct ext2_dir_entry_2 * ext2_dirent_alloc( struct ext2_filesystem *fs,
     // Now that the inode has enough space for sure, find the first open dirent
     int i = 0;
     struct ext2_dir_entry_2 *first_dirent = ext2_get_first_dirent( fs, inode );
+
+    if (!first_dirent->inode)
+        return first_dirent;
+
     struct ext2_dir_entry_2 *dirent = first_dirent;
     struct ext2_dir_entry_2 *prev_dirent = first_dirent;
     while( dirent ) {
@@ -238,7 +242,6 @@ struct ext2_dir_entry_2 * ext2_dirent_alloc( struct ext2_filesystem *fs,
         dirent = prev_dirent + 1;
 
     prev_dirent->next_dirent = dirent;
-
     return dirent;
 }
 

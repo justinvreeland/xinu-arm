@@ -230,13 +230,15 @@ struct ext2_dir_entry_2 * ext2_get_dirent_from_path( struct ext2_filesystem *fs,
 
     while (*dirpath) {
         memcpy( curr_dir_name, dirpath, dir_len );
-        curr_dir_name[dir_len] = '\0';
+        curr_dir_name[dir_len] = 0;
         dirpath += dir_len+1;
         curr_dirent = ext2_get_dirent_from_inode( fs, curr_inode, curr_dir_name );
+        // Didn't find the file or directory
+        if ( !curr_dirent )
+            return 0;
         dir_len = strchr( dirpath, DIR_SEP ) - dirpath;
         curr_inode = ext2_get_inode( fs, curr_dirent->inode );
     }
-
     struct ext2_inode *dirent_inode = ext2_get_inode( fs, curr_dirent->inode );
     return ext2_get_dirent_from_inode( fs, dirent_inode, filename );
 }

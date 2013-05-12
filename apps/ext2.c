@@ -71,7 +71,6 @@ void touch( struct ext2_filesystem *fs, char *path, char *name ) {
         printf("touch: %d: No such inode\n", dir->inode);
         return;
     }
-
     uint32 newInodeNum = ext2_inode_alloc( fs );
     if (!newInodeNum) {
         printf("touch: No inode available\n");
@@ -97,6 +96,7 @@ void touch( struct ext2_filesystem *fs, char *path, char *name ) {
     newDirent->next_dirent = 0;
     newDirent->name_len = strnlen( name, EXT2_NAME_LEN );
     newDirent->filetype = EXT2_FT_REG_FILE;
+
 }
 
 /*
@@ -174,7 +174,6 @@ void mkdir( struct ext2_filesystem *fs, char *path, char *name ) {
     newInode->i_mode = EXT2_S_IFDIR;
     newInode->i_size = 0;
 
-    printf("HERE I AM\n");
     struct ext2_dir_entry_2 *newDirent = ext2_dirent_alloc( fs, dirInode );
 
     if (!newDirent) {
@@ -194,10 +193,23 @@ void mkdir( struct ext2_filesystem *fs, char *path, char *name ) {
     }
 
     newHomeDirent->inode = newInodeNum;
-    memcpy( newDirent->name, ".", 1);
+    memcpy( newHomeDirent->name, ".", 1);
     newHomeDirent->next_dirent = 0;
     newHomeDirent->name_len = 1;
     newHomeDirent->filetype = EXT2_FT_DIR;
+
+    struct ext2_dir_entry_2 *newParentDirent = ext2_dirent_alloc( fs, newInode );
+    if (!newParentDirent) {
+        printf("mkdir: No dirent available\n");
+        return;
+    }
+
+    newParentDirent->inode = dir->inode;
+    memcpy( newParentDirent->name, "..", 2 );
+    newParentDirent->next_dirent = 0;
+    newParentDirent->name_len = 2;
+    newParentDirent->filetype = EXT2_FT_DIR;
+
 }
 
 int ext2(void) {
@@ -301,6 +313,12 @@ int ext2(void) {
     stat = ext2_write_file_by_path( xinu_fs, "./asdf", bufferL,
                                                     &bytes_written, 0, 8 );
     ls( xinu_fs, "./" );
+    printf("mking dir\n");
+    mkdir( xinu_fs, "./", "dir" );
+    ls( xinu_fs, "./" );
+    printf("touching yo\n");
+    touch( xinu_fs, "./dir/", "yo" );
+    ls( xinu_fs, "./dir/");
 #if 0
     // Test the read/write functions
     printf("Testing hardcoded data\n");
