@@ -15,17 +15,6 @@
 shellcmd xsh_ls(int nargs, char *args[])
 {
 
-  // sketchyest hack eva'
-  printf("");
-  if(!args[1]){
-    *args[1] = '.';
-  }
-  char tmp[strnlen(args[1]) + 1];
-  memcpy(tmp, args[1], strnlen(args[1]) + 1);
-  tmp[strnlen(args[1])] = '/';
-  tmp[strnlen(args[1]) + 1] = 0;
-
-  ls(tmp);
-  args[1] = 0;
+    ls(0);
     return OK;
 }
