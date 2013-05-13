@@ -27,6 +27,8 @@
  */
 devcall lfsOpen( struct dentry* devptr, char* path, char* mode){
 
+  printf("path: %s\n", path);
+
   struct lflcblk* lfptr;                  /* pointer to open file table entry */
   struct ext2_dir_entry_2* newEnt;        /* pointer to new entry */
   int lfnext;                           /* minor number of next dev */
@@ -68,6 +70,7 @@ devcall lfsOpen( struct dentry* devptr, char* path, char* mode){
   *fpath = '\0';
   // without this i gain an extra '/'
   name[len] = 0;
+  printf("FS: %x, Path: %s, Name: %s\n", Lf_data.xinufs, path, name);
   lfptr->dir = ext2_get_dirent_from_path( Lf_data.xinufs, path, name);
   print_dirent(lfptr->dir);
   lfptr->lfstate = LF_USED;

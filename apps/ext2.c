@@ -287,6 +287,7 @@ int ext2(void) {
     memcpy(blk5->name, homeName, 255);
 
     _fs_ext2_init();
+#if 0
     touch( xinu_fs, "./", "test" );
     char bufferL[9] = "Go long!";
     uint32 bytes_written;
@@ -319,11 +320,11 @@ int ext2(void) {
     printf("touching yo\n");
     touch( xinu_fs, "./dir/", "yo" );
     ls( xinu_fs, "./dir/");
-#if 0
+#endif
     // Test the read/write functions
     printf("Testing hardcoded data\n");
     print_superblock( xinu_fs->sb );
-    struct ext2_inode *i1 = get_inode(xinu_fs, 1);
+    struct ext2_inode *i1 = ext2_get_inode(xinu_fs, 1);
     print_inode( i1, 1, xinu_fs );
     struct ext2_dir_entry_2 *home = ext2_get_first_dirent(xinu_fs, i1 );
     print_dirent( home );
@@ -337,7 +338,7 @@ int ext2(void) {
 
     struct ext2_dir_entry_2 *dirent = ext2_dirent_alloc( xinu_fs, i1 );
     dirent->inode = 2;
-    dirent->rec_len = sizeof(struct ext2_dir_entry_2);
+    dirent->next_dirent = 0;
     dirent->name_len = 4;
     dirent->filetype = EXT2_FT_REG_FILE;
     char testName[255] = "test";
@@ -353,19 +354,18 @@ int ext2(void) {
                                                       &bytes_written, 0, 13 );
     printf("bytes_written = %d stat = %d\n", bytes_written, stat);
     char buffer2[12*1024];
-    stat = ext2_write_file_by_path( xinu_fs, path, buffer2,
-                                                      &bytes_written, 13, (12*1024)-1 );
+ //   stat = ext2_write_file_by_path( xinu_fs, path, buffer2,
+  //                                                    &bytes_written, 13, (12*1024)-1 );
     printf("bytes_written = %d stat = %d\n", bytes_written, stat);
-    stat = ext2_write_file_by_path( xinu_fs, path, bufferL,
-                                                      &bytes_written, (12*1024)+12, 8 );
+//    stat = ext2_write_file_by_path( xinu_fs, path, bufferL,
+//                                                      &bytes_written, (12*1024)+12, 8 );
     printf("bytes_written = %d stat = %d\n", bytes_written, stat);
     int read = 0;
     char readBuf[30];
     read = ext2_read_dirent( xinu_fs, dirent, readBuf, 0, 29);
     printf("Read %d bytes readBuf = %s\n", read, readBuf);
-    read = ext2_read_dirent( xinu_fs, dirent, readBuf, (12*1024)+12, 10);
-    printf("Read %d bytes readBuf = %s\n", read, readBuf);
-#endif
+//    read = ext2_read_dirent( xinu_fs, dirent, readBuf, (12*1024)+12, 10);
+//    printf("Read %d bytes readBuf = %s\n", read, readBuf);
 
     return 0;
 }

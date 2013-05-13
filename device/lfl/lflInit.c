@@ -28,9 +28,5 @@ devcall lflInit( struct dentry *devptr ){
   lfptr->lfdev = devptr->num;
   lfptr->lfpos = 0;
 
-  for (i = 0; i < LF_NAME_LEN; i++){
-   lfptr->lfname[i] = NULL;
-  }
-
   return OK;
 }

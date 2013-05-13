@@ -8,14 +8,8 @@
 
 int testlfl(void){
 
-  //  lflInit(0);
-  lflRead(0, 0, 0);
-  lflClose(0);
-  lflGetc(0);
-  lflPutc(0, 0);
-  lflSeek(0);
 
-  lfsInit(0);
+//  lfsInit(0);
   int f;
   //  printf("getdev %d\n", getdev("EXTROOTFS"));
   f = lfsOpen(getdev("EXTROOTFS"), "./test" , 0);

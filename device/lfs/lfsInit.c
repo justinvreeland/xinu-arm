@@ -93,7 +93,7 @@ devcall lfsInit( struct dentry* dev){
   struct ext2_dir_entry_2 *blk5;
   blk5 = (struct ext2_dir_entry_2 *) (sb + 5);
   blk5->inode = 1;
-  blk5->rec_len = sizeof(struct ext2_dir_entry_2);
+  blk5->next_dirent = 0; 
   blk5->name_len = 1;
   blk5->filetype = 2;
   char homeName[255] = ".";
