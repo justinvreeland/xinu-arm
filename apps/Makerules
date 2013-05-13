@@ -6,7 +6,8 @@ COMP = apps
 # Source files for this component
 C_FILES = date.c history.c charCatch.c testlfl.c
 
-C_FILES += ext2.c ext2_read.c ext2_write.c 
+C_FILES += touch.c rm.c ls.c cat.c mkdir.c 
+C_FILES += ext2.c ext2_write.c ext2_read.c
 
 S_FILES =
 

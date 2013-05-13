@@ -18,6 +18,12 @@
 #include <nvram.h>
 #include <conf.h>
 #include <history.h>
+#include <ext2cheating.h>
+
+char curdir[1500];
+char prevdir[1500];
+struct ext2_filesystem* filesystem;
+
 
 const struct centry commandtab[] = {
 #if NETHER

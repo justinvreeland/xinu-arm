@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "ext2_write.h"
-#include "ext2_common.h"
+#include <ext2_write.h>
+#include <ext2_common.h>
 
 /*
  * Returns a pointer to the block bitmap for the block group which holds the

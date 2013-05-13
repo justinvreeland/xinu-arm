@@ -3,7 +3,7 @@
  */
 #include <lfl.h>
 #include <lfilesys.h>
-#include "../apps/ext2_common.h"
+#include <ext2_common.h>
 
 devcall lflClose(device* dev){
   struct lflcblk *lfptr;

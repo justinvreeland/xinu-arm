@@ -24,7 +24,7 @@
 #ifndef _LFILESYS_H_
 #define _LFILESYS_H_
 
-#include "../apps/ext2.h"
+#include <ext2.h>
 
 // in the book here are settings I don't think we care about
 // i didn't set up mutexs becuase i don't care at the moment

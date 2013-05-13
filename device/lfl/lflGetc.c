@@ -8,7 +8,7 @@
  * based heavily off of code found in
  * Operating Systems the Xinu Approach Linksys Version
  * Things not implemented and probbly not going to be:
- *  1) flags 
+ *  1) flags
  *  2) exlusive acess
  *
  */
@@ -16,9 +16,9 @@
 #include <lfl.h>
 #include <lfs.h>
 #include <lfilesys.h>
-#include "../apps/ext2_read.h"
-#include "../apps/ext2_common.h"
-#include "../apps/ext2_write.h"
+#include <ext2_read.h>
+#include <ext2_common.h>
+#include <ext2_write.h>
 
 
 devcall lflGetc(device* dev){

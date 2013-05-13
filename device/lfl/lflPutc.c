@@ -3,8 +3,8 @@
  */
 #include <lfl.h>
 #include <lfilesys.h>
-#include "../apps/ext2_write.h"
-#include "../apps/ext2_common.h"
+#include <ext2_write.h>
+#include <ext2_common.h>
 
 devcall lflPutc(device *dev, char c){
   struct lflcblk *lfptr;

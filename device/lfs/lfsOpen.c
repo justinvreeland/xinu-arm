@@ -14,9 +14,9 @@
 #include <lfl.h>
 #include <lfilesys.h>
 #include <string.h>
-#include "../apps/ext2_read.h"
-#include "../apps/ext2_common.h"
-#include "../apps/ext2_write.h"
+#include <ext2_read.h>
+#include <ext2_common.h>
+#include <ext2_write.h>
 
 /*
  * This this doesn't do and i have no intention of adding
