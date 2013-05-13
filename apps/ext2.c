@@ -11,6 +11,7 @@
 #include <ext2_write.h>
 #include <ext2_read.h>
 #include <ext2_common.h>
+//#include "cmd.h"
 
 // Location of fs in xinu
 struct ext2_filesystem *xinu_fs;
@@ -27,6 +28,30 @@ void _fs_ext2_init(void) {
     xinu_fs->base_addr = (uint32) VIRT_MEM_LOCATION;
 
 }
+
+/*
+ * Remove a directory
+ */
+void rmdir( struct ext2_filesystem *fs, char *path, char *dirName ) {
+
+    struct ext2_dir_entry_2 *parentDirent = ext2_get_dirent_from_path( fs, path, "." );
+    struct ext2_dir_entry_2 *dirent = ext2_get_dirent_from_path( fs, path, dirName );
+
+    ext2_dirent_dealloc( fs, dirent, parentDirent->inode );
+
+    struct ext2_inode *inode = ext2_get_inode( fs, dirent->inode );
+    struct ext2_dir_entry_2 *first_dirent = ext2_get_first_dirent( fs, inode );
+    struct ext2_dir_entry_2 *curr_dirent = first_dirent;
+
+    while( curr_dirent ) {
+        ext2_inode_dealloc( fs, curr_dirent->inode );
+        curr_dirent = ext2_get_next_dirent( fs, curr_dirent );
+    }
+
+    ext2_inode_dealloc( fs, first_dirent->inode );
+
+}
+
 
 int ext2(void) {
     printf("Hello World, this is the Ext2 FS\n");
@@ -103,7 +128,7 @@ int ext2(void) {
     memcpy(blk5->name, homeName, 255);
 
     _fs_ext2_init();
-#if 0
+
     touch( xinu_fs, "./", "test" );
     char bufferL[9] = "Go long!";
     uint32 bytes_written;
@@ -136,7 +161,12 @@ int ext2(void) {
     printf("touching yo\n");
     touch( xinu_fs, "./dir/", "yo" );
     ls( xinu_fs, "./dir/");
-#endif
+
+    rmdir( xinu_fs, "./", "dir" );
+    ls( xinu_fs, "./dir/");
+    ls(xinu_fs, "./");
+
+#if 0
     // Test the read/write functions
     printf("Testing hardcoded data\n");
     print_superblock( xinu_fs->sb );
@@ -182,6 +212,6 @@ int ext2(void) {
     printf("Read %d bytes readBuf = %s\n", read, readBuf);
 //    read = ext2_read_dirent( xinu_fs, dirent, readBuf, (12*1024)+12, 10);
 //    printf("Read %d bytes readBuf = %s\n", read, readBuf);
-
+#endif
     return 0;
 }
