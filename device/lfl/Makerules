@@ -1,0 +1,12 @@
+# This Makefile contains rules to build files in the device/tty/ directory.
+
+# Name of this component (the directory this file is stored in)
+COMP = device/lfl
+
+# Source files for this component
+C_FILES = lfl.c lflRead.c lflInit.c lflGetc.c lflPutc.c lflWrite.c lflClose.c
+S_FILES =
+
+# Add the files to the compile source path
+DIR = ${TOPDIR}/${COMP}
+COMP_SRC += ${S_FILES:%=${DIR}/%} ${C_FILES:%=${DIR}/%}

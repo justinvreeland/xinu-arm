@@ -56,3 +56,5 @@ system/conf.c
 Icon?
 ehthumbs.db
 Thumbs.db
+Session.vim
+tags
