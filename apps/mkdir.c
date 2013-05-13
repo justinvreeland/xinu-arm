@@ -7,7 +7,7 @@
 #include "ext2_common.h"
 
 /*
- * Copy
+ * Makes a directory
  */
 void mkdir( struct ext2_filesystem *fs, char *path, char *name ) {
 
