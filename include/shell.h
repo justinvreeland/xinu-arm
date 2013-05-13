@@ -62,6 +62,7 @@ shellcmd xsh_date(int, char *[]);
 shellcmd xsh_ethstat(int, char *[]);
 shellcmd xsh_exit(int, char *[]);
 shellcmd xsh_ext2(int, char *p[]);
+shellcmd xsh_testlfl(int, char *p[]);
 shellcmd xsh_flashstat(int, char *[]);
 shellcmd xsh_gpiostat(int, char *[]);
 shellcmd xsh_help(int, char *[]);

@@ -4,9 +4,9 @@
 COMP = apps
 
 # Source files for this component
-C_FILES = date.c history.c charCatch.c
+C_FILES = date.c history.c charCatch.c testlfl.c
 
-C_FILES += ext2.c ext2_read.c ext2_write.c
+C_FILES += ext2.c ext2_read.c ext2_write.c 
 
 S_FILES =
 

@@ -28,6 +28,7 @@ const struct centry commandtab[] = {
     {"ext2", FALSE, xsh_ext2},
     {"history", FALSE, xsh_history},
     {"charCatch", FALSE, xsh_charCatch},
+    {"testlfl", FALSE, xsh_testlfl},
 #if USE_TLB
   {"dumptlb", FALSE, xsh_dumptlb},
 #endif
