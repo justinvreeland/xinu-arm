@@ -11,7 +11,7 @@
 #include <ext2_write.h>
 #include <ext2_read.h>
 #include <ext2_common.h>
-//#include "cmd.h"
+#include "cmd.h"
 
 // Location of fs in xinu
 struct ext2_filesystem *xinu_fs;
@@ -52,6 +52,72 @@ void rmdir( struct ext2_filesystem *fs, char *path, char *dirName ) {
 
 }
 
+/*
+ * Copy
+ */
+void copy( struct ext2_filesystem *fs, char *pathS,
+           char *nameS, char *pathD, char *nameD ) {
+
+    struct ext2_dir_entry_2 *direntS = ext2_get_dirent_from_path( fs, pathS, nameS );
+    if (!direntS) {
+        printf("copy: %s%s: file not found\n", pathS, nameS);
+        return;
+    }
+    struct ext2_dir_entry_2 *parentDirentD = ext2_get_dirent_from_path( fs, pathD, "." );
+    if (!parentDirentD) {
+        printf("copy: %s: directory not found\n", pathD);
+        return;
+    }
+    struct ext2_inode *parentInode = ext2_get_inode( fs, parentDirentD->inode );
+    if (!parentInode) {
+        printf("copy: %d: inode not found\n", parentDirentD->inode);
+        return;
+    }
+    struct ext2_inode *inodeS = ext2_get_inode( fs, direntS->inode );
+    if (!inodeS) {
+        printf("copy: %d: inode not found\n", direntS->inode);
+        return;
+    }
+
+    uint32 newInodeNum = ext2_inode_alloc( fs );
+    if (!newInodeNum) {
+        printf("copy: no new inode available\n");
+        return;
+    }
+    struct ext2_inode *newInode = ext2_get_inode( fs, newInodeNum );
+    if (!newInode)
+        return;
+
+    newInode->i_mode = inodeS->i_mode;
+    newInode->i_size = 0;
+
+    struct ext2_dir_entry_2 *newDirent = ext2_dirent_alloc( fs, parentInode );
+    if (!newDirent) {
+        printf("copy: no new dirents available\n");
+        return;
+    }
+    newDirent->inode = newInodeNum;
+    newDirent->next_dirent = 0;
+    newDirent->name_len = strnlen( nameD, EXT2_NAME_LEN );
+    newDirent->filetype = direntS->filetype;
+    memcpy( newDirent->name, nameD, strnlen( nameD, EXT2_NAME_LEN ) );
+
+    char buff[inodeS->i_size];
+    int bytesRead  = ext2_read_dirent( fs, direntS, buff, 0, inodeS->i_size );
+    int bytesWritten = ext2_write_file_by_inode( fs, newDirent, buff, 0, bytesRead );
+
+}
+
+/*
+ * Move
+ */
+void mv( struct ext2_filesystem *fs, char *pathS,
+         char *nameS, char *pathD, char *nameD ) {
+
+    copy( fs, pathS, nameS, pathD, nameD );
+    rm( fs, pathS, nameS );
+
+}
 
 int ext2(void) {
     printf("Hello World, this is the Ext2 FS\n");
@@ -162,9 +228,19 @@ int ext2(void) {
     touch( xinu_fs, "./dir/", "yo" );
     ls( xinu_fs, "./dir/");
 
-    rmdir( xinu_fs, "./", "dir" );
-    ls( xinu_fs, "./dir/");
-    ls(xinu_fs, "./");
+    copy( xinu_fs, "./", "whoah", "./", "hello" );
+    ls( xinu_fs, "./" );
+    cat( xinu_fs, "./", "hello" );
+
+    copy( xinu_fs, "./", "hello", "./dir/", "hello" );
+    printf("HERE\n");
+    ls( xinu_fs, "./dir/" );
+    cat( xinu_fs, "./dir/", "hello" );
+
+    printf("removeing\n");
+    mv( xinu_fs, "./dir/", "yo", "./", "a" );
+    ls( xinu_fs, "./" );
+    cat( xinu_fs, "./", "a" );
 
 #if 0
     // Test the read/write functions
