@@ -15,7 +15,7 @@
 void ls(char *path){
 
   if(!path){
-    path = "./";
+    path = curdir;
   }
     struct ext2_dir_entry_2 *dir = ext2_get_dirent_from_path( filesystem, path, "." );
     if (!dir) {

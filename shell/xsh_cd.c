@@ -18,5 +18,7 @@ shellcmd xsh_cd(int nargs, char *args[])
     return OK;
   }
   cd( args[1] );
+  args[1] = 0;
     return OK;
+
 }

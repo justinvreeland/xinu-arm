@@ -13,6 +13,7 @@ void cd(char* dirname){
   if(ext2_get_dirent_from_path(filesystem, curdir, dirname)->filetype ==
      EXT2_FT_DIR ){
     memcpy(curdir+size, dirname, strnlen(dirname, 1500));
+    curdir[strnlen(curdir, 1500)] = '/';
   } else printf("No such directory");
 
 }
