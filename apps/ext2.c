@@ -11,7 +11,6 @@
 #include <ext2_write.h>
 #include <ext2_read.h>
 #include <ext2_common.h>
-#include "cmd.h"
 
 // Location of fs in xinu
 struct ext2_filesystem *xinu_fs;
@@ -30,9 +29,193 @@ void _fs_ext2_init(void) {
 }
 
 /*
+ * List all dirents
+ */
+void ls1( struct ext2_filesystem *fs, char *path ) {
+
+    struct ext2_dir_entry_2 *dir = ext2_get_dirent_from_path( fs, path, "." );
+    if (!dir) {
+        printf("ls: %s: No such file or directory\n",path);
+        return;
+    }
+
+    struct ext2_inode *dirInode = ext2_get_inode( fs, dir->inode );
+    if (!dirInode) {
+        printf("ls: %d: No such inode\n", dir->inode);
+        return;
+    }
+
+    struct ext2_dir_entry_2 *firstDirent = ext2_get_first_dirent( fs, dirInode );
+    struct ext2_dir_entry_2 *currDirent = firstDirent;
+
+    while ( currDirent->inode &&
+            ( currDirent - firstDirent < dirInode->i_size ) ) {
+        printf( "%s\n", currDirent->name );
+        currDirent = ext2_get_next_dirent( fs, currDirent );
+    }
+}
+
+/*
+ * Create a new empty file of the given name in the given path
+ */
+void touch1( struct ext2_filesystem *fs, char *path, char *name ) {
+
+    struct ext2_dir_entry_2 *dir = ext2_get_dirent_from_path( fs, path, "." );
+    if (!dir) {
+        printf("touch: %s: No such file or directory\n",path);
+        return;
+    }
+
+    struct ext2_inode *dirInode = ext2_get_inode( fs, dir->inode );
+    if (!dirInode) {
+        printf("touch: %d: No such inode\n", dir->inode);
+        return;
+    }
+    uint32 newInodeNum = ext2_inode_alloc( fs );
+    if (!newInodeNum) {
+        printf("touch: No inode available\n");
+        return;
+    }
+
+    struct ext2_inode *newInode = ext2_get_inode( fs, newInodeNum );
+    if (!newInode) {
+        printf("touch: %d: No such inode\n", newInodeNum);
+        return;
+    }
+    newInode->i_mode = EXT2_S_IFREG;
+    newInode->i_size = 0;
+
+    struct ext2_dir_entry_2 *newDirent = ext2_dirent_alloc( fs, dirInode );
+
+    if (!newDirent) {
+        printf("touch: No dirent available\n");
+        return;
+    }
+    newDirent->inode = newInodeNum;
+    memcpy( newDirent->name, name, strnlen( name, EXT2_NAME_LEN ) );
+    newDirent->next_dirent = 0;
+    newDirent->name_len = strnlen( name, EXT2_NAME_LEN );
+    newDirent->filetype = EXT2_FT_REG_FILE;
+
+}
+
+/*
+ * Print the contents of a file
+ */
+void cat1( struct ext2_filesystem *fs, char *path, char *name ) {
+
+    struct ext2_dir_entry_2 *file = ext2_get_dirent_from_path( fs, path, name );
+
+    if (!file) {
+        printf("cat: %s: No such file or directory\n",path);
+        return;
+    }
+
+    struct ext2_inode *inode = ext2_get_inode( fs, file->inode );
+    if (!inode) {
+        printf("cat: %d: No such inode\n", file->inode);
+        return;
+    }
+
+    char buffer[inode->i_size + 1];
+    int read = ext2_read_dirent( fs, file, buffer, 0, inode->i_size );
+    buffer[read] = 0;
+    printf( "%s\n", buffer );
+}
+
+/*
+ * Remove a file
+ */
+void rm1( struct ext2_filesystem *fs, char *path, char *name ) {
+
+    struct ext2_dir_entry_2 *file = ext2_get_dirent_from_path( fs, path, name );
+    if (!file) {
+        return;
+    }
+    if ( file->filetype == EXT2_FT_DIR ) {
+        printf("rm: %s%s: is a directory\n", path, name);
+        return;
+    }
+    struct ext2_dir_entry_2 *dir = ext2_get_dirent_from_path( fs, path, "." );
+    ext2_dirent_dealloc( fs, file, dir->inode );
+    ext2_inode_dealloc( fs, file->inode );
+
+}
+
+/*
+ * Copy
+ */
+void mkdir1( struct ext2_filesystem *fs, char *path, char *name ) {
+
+    struct ext2_dir_entry_2 *dir = ext2_get_dirent_from_path( fs, path, "." );
+    if (!dir) {
+        printf("mkdir: %s: No such file or directory\n",path);
+        return;
+    }
+
+    struct ext2_inode *dirInode = ext2_get_inode( fs, dir->inode );
+    if (!dirInode) {
+        printf("mkdir: %d: No such inode\n", dir->inode);
+        return;
+    }
+
+    uint32 newInodeNum = ext2_inode_alloc( fs );
+    if (!newInodeNum) {
+        printf("mkdir: No inode available\n");
+        return;
+    }
+
+    struct ext2_inode *newInode = ext2_get_inode( fs, newInodeNum );
+    if (!newInode) {
+        printf("mkdir: %d: No such inode\n", newInodeNum);
+        return;
+    }
+
+    newInode->i_mode = EXT2_S_IFDIR;
+    newInode->i_size = 0;
+
+    struct ext2_dir_entry_2 *newDirent = ext2_dirent_alloc( fs, dirInode );
+
+    if (!newDirent) {
+        printf("mkdir: No dirent available\n");
+        return;
+    }
+    newDirent->inode = newInodeNum;
+    memcpy( newDirent->name, name, strnlen( name, EXT2_NAME_LEN ) );
+    newDirent->next_dirent = 0;
+    newDirent->name_len = strnlen( name, EXT2_NAME_LEN );
+    newDirent->filetype = EXT2_FT_DIR;
+
+    struct ext2_dir_entry_2 *newHomeDirent = ext2_dirent_alloc( fs, newInode );
+    if (!newHomeDirent) {
+        printf("mkdir: No dirent available\n");
+        return;
+    }
+
+    newHomeDirent->inode = newInodeNum;
+    memcpy( newHomeDirent->name, ".", 1);
+    newHomeDirent->next_dirent = 0;
+    newHomeDirent->name_len = 1;
+    newHomeDirent->filetype = EXT2_FT_DIR;
+
+    struct ext2_dir_entry_2 *newParentDirent = ext2_dirent_alloc( fs, newInode );
+    if (!newParentDirent) {
+        printf("mkdir: No dirent available\n");
+        return;
+    }
+
+    newParentDirent->inode = dir->inode;
+    memcpy( newParentDirent->name, "..", 2 );
+    newParentDirent->next_dirent = 0;
+    newParentDirent->name_len = 2;
+    newParentDirent->filetype = EXT2_FT_DIR;
+
+}
+
+/*
  * Remove a directory
  */
-void rmdir( struct ext2_filesystem *fs, char *path, char *dirName ) {
+void rmdir1( struct ext2_filesystem *fs, char *path, char *dirName ) {
 
     struct ext2_dir_entry_2 *parentDirent = ext2_get_dirent_from_path( fs, path, "." );
     struct ext2_dir_entry_2 *dirent = ext2_get_dirent_from_path( fs, path, dirName );
@@ -55,7 +238,7 @@ void rmdir( struct ext2_filesystem *fs, char *path, char *dirName ) {
 /*
  * Copy
  */
-void copy( struct ext2_filesystem *fs, char *pathS,
+void copy1( struct ext2_filesystem *fs, char *pathS,
            char *nameS, char *pathD, char *nameD ) {
 
     struct ext2_dir_entry_2 *direntS = ext2_get_dirent_from_path( fs, pathS, nameS );
@@ -111,11 +294,11 @@ void copy( struct ext2_filesystem *fs, char *pathS,
 /*
  * Move
  */
-void mv( struct ext2_filesystem *fs, char *pathS,
+void mv1( struct ext2_filesystem *fs, char *pathS,
          char *nameS, char *pathD, char *nameD ) {
 
-    copy( fs, pathS, nameS, pathD, nameD );
-    rm( fs, pathS, nameS );
+    copy1( fs, pathS, nameS, pathD, nameD );
+    rm1( fs, pathS, nameS );
 
 }
 
@@ -195,52 +378,52 @@ int ext2(void) {
 
     _fs_ext2_init();
 
-    touch( xinu_fs, "./", "test" );
+    touch1( xinu_fs, "./", "test" );
     char bufferL[9] = "Go long!";
     uint32 bytes_written;
     ext2_write_status stat = ext2_write_file_by_path( xinu_fs, "./test", bufferL,
                                                       &bytes_written, 0, 8 );
-    touch( xinu_fs, "./", "yo");
+    touch1( xinu_fs, "./", "yo");
     stat = ext2_write_file_by_path( xinu_fs, "./yo", bufferL,
                                                       &bytes_written, 0, 8 );
-    touch( xinu_fs, "./", "whoah" );
+    touch1( xinu_fs, "./", "whoah" );
     stat = ext2_write_file_by_path( xinu_fs, "./whoah", bufferL,
                                                     &bytes_written, 0, 8 );
-    touch( xinu_fs, "./", "iasjdf" );
+    touch1( xinu_fs, "./", "iasjdf" );
     stat = ext2_write_file_by_path( xinu_fs, "./iasjdf", bufferL,
                                                     &bytes_written, 0, 8 );
-    touch( xinu_fs, "./", "f" );
+    touch1( xinu_fs, "./", "f" );
     stat = ext2_write_file_by_path( xinu_fs, "./f", bufferL,
                                                     &bytes_written, 0, 8 );
-    ls( xinu_fs, "./" );
+    ls1( xinu_fs, "./" );
     printf("removing yo\n");
-    rm( xinu_fs, "./", "yo" );
-    ls( xinu_fs, "./" );
+    rm1( xinu_fs, "./", "yo" );
+    ls1( xinu_fs, "./" );
     printf("touching asdf\n");
-    touch( xinu_fs, "./", "asdf" );
+    touch1( xinu_fs, "./", "asdf" );
     stat = ext2_write_file_by_path( xinu_fs, "./asdf", bufferL,
                                                     &bytes_written, 0, 8 );
-    ls( xinu_fs, "./" );
+    ls1( xinu_fs, "./" );
     printf("mking dir\n");
-    mkdir( xinu_fs, "./", "dir" );
-    ls( xinu_fs, "./" );
+    mkdir1( xinu_fs, "./", "dir" );
+    ls1( xinu_fs, "./" );
     printf("touching yo\n");
-    touch( xinu_fs, "./dir/", "yo" );
-    ls( xinu_fs, "./dir/");
+    touch1( xinu_fs, "./dir/", "yo" );
+    ls1( xinu_fs, "./dir/");
 
-    copy( xinu_fs, "./", "whoah", "./", "hello" );
-    ls( xinu_fs, "./" );
-    cat( xinu_fs, "./", "hello" );
+    copy1( xinu_fs, "./", "whoah", "./", "hello" );
+    ls1( xinu_fs, "./" );
+    cat1( xinu_fs, "./", "hello" );
 
-    copy( xinu_fs, "./", "hello", "./dir/", "hello" );
+    copy1( xinu_fs, "./", "hello", "./dir/", "hello" );
     printf("HERE\n");
-    ls( xinu_fs, "./dir/" );
-    cat( xinu_fs, "./dir/", "hello" );
+    ls1( xinu_fs, "./dir/" );
+    cat1( xinu_fs, "./dir/", "hello" );
 
     printf("removeing\n");
-    mv( xinu_fs, "./dir/", "yo", "./", "a" );
-    ls( xinu_fs, "./" );
-    cat( xinu_fs, "./", "a" );
+    mv1( xinu_fs, "./dir/", "yo", "./", "a" );
+    ls1( xinu_fs, "./" );
+    cat1( xinu_fs, "./", "a" );
 
 #if 0
     // Test the read/write functions

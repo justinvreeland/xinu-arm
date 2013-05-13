@@ -44,7 +44,8 @@ C_FILES += xsh_ext2.c
 # History commands
 C_FILES += xsh_history.c
 # shellzzzz
-C_FILES += xsh_cat.c xsh_ls.c xsh_touch.c xsh_rm.c xsh_mkdir.c
+C_FILES += xsh_cat.c xsh_ls.c xsh_touch.c xsh_rm.c xsh_mkdir.c xsh_mv.c xsh_cp.c
+C_FILES += xsh_rmdir.c xsh_cd.c xsh_pwd.c
 
 S_FILES =
 

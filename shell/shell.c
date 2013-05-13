@@ -41,6 +41,11 @@ const struct centry commandtab[] = {
     {"touch", FALSE, xsh_touch},
     {"rm", FALSE, xsh_rm},
     {"mkdir", FALSE, xsh_mkdir},
+    {"cp", FALSE, xsh_cp},
+    {"mv", FALSE, xsh_mv},
+    {"rmdir", FALSE, xsh_rmdir},
+    {"cd", FALSE, xsh_cd},
+    {"pwd", FALSE, xsh_pwd},
 #if USE_TLB
   {"dumptlb", FALSE, xsh_dumptlb},
 #endif
