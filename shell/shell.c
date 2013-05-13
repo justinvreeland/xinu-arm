@@ -19,10 +19,11 @@
 #include <conf.h>
 #include <history.h>
 #include <ext2cheating.h>
+#include <ext2.h>
 
-char curdir[1500];
+char curdir[1500] = "./";
 char prevdir[1500];
-struct ext2_filesystem* filesystem;
+struct ext2_filesystem* filesystem = (struct ext2_filesystem*) 0x80;
 
 
 const struct centry commandtab[] = {
@@ -35,6 +36,11 @@ const struct centry commandtab[] = {
     {"history", FALSE, xsh_history},
     {"charCatch", FALSE, xsh_charCatch},
     {"testlfl", FALSE, xsh_testlfl},
+    {"cat", FALSE, xsh_cat},
+    {"ls", FALSE, xsh_ls},
+    {"touch", FALSE, xsh_touch},
+    {"rm", FALSE, xsh_rm},
+    {"mkdir", FALSE, xsh_mkdir},
 #if USE_TLB
   {"dumptlb", FALSE, xsh_dumptlb},
 #endif
@@ -740,6 +746,8 @@ thread shell(int indescrp, int outdescrp, int errdescrp)
       create(commandtab[i].procedure,
           SHELL_CMDSTK, SHELL_CMDPRIO,
           commandtab[i].name, 2, ntok, tok);
+
+
 
     /* Ensure child command thread was created successfully */
     if (SYSERR == child)

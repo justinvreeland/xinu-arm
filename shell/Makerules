@@ -43,6 +43,8 @@ C_FILES += xsh_test.c xsh_testsuite.c
 C_FILES += xsh_ext2.c
 # History commands
 C_FILES += xsh_history.c
+# shellzzzz
+C_FILES += xsh_cat.c xsh_ls.c xsh_touch.c xsh_rm.c xsh_mkdir.c
 
 S_FILES =
 
